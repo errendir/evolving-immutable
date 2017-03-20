@@ -195,6 +195,15 @@ console.log(
 )
 
 // Pipeline example - all functions are specializable
+const _getLikesByPostId = pipelinePiece({
+  createPipeline: () => ({
+    groupLikesByPostId: group(like => like.postId)
+  }),
+  executePipeline: ({ groupLikesByPostId }, likesById) => {
+    return groupLikesByPostId(likesById)
+  }
+})
+
 const _getLikeUsers = pipelinePiece({
   createPipeline: () => ({
     attachLikingUser: leftJoin(
@@ -241,6 +250,11 @@ const scopesOfUsersAndLikes = Map({
       .set('uF', {id: 'uF', name: 'F'}),
   },
 })
+
+console.log('getLikesByPostId')
+console.log(
+  getLikesByPostId(likesById).toJS()
+)
 
 console.log('mapScopesToLikeUsersByPostId')
 console.log(inspect(
