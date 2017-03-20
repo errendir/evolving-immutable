@@ -504,7 +504,7 @@ export const toMap = (keyFn) => {
       const key = keyFn(value)
       newValue = newValue.set(key, value)
     })
-    argumentDiff.updated.forEach(({prev, next}) => {
+    argumentDiff.updated && argumentDiff.updated.forEach(({prev, next}) => {
       const prevKey = keyFn(prev)
       const nextKey = keyFn(next)
       newValue = newValue.remove(prevKey).set(nextKey, next)

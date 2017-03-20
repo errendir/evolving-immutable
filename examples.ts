@@ -2,7 +2,7 @@ import { inspect } from 'util'
 
 import { Record, Set, Map } from 'immutable'
 
-import { pipelinePiece, unionMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
+import { pipelinePiece, unionMap, unionSet, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
 
 const posts = Set([
   {id: 'pA'},
@@ -168,10 +168,18 @@ const getInNeighboursByNodeId = (edgesById, nodesById) => {
   return simplify_2(convertToSet_2(leaveSourceNode(edgesBySourceAndTarget)))
 }
 
-// TODO: Use specializable unionMap as the zip attach function, so we can diff-mem each union
-const zipNeighbours = zip(
-  (inNeighbours, outNeighbours) => (inNeighbours || Set()).union(outNeighbours || Set())
-)
+// We are using a specializable `combineNeighbours` as the zip attach function, so we can diff-mem each union
+const combineNeighbours = pipelinePiece({
+  createPipeline: () => ({
+    unionInAndOutNeighbours: unionSet(),
+    emptySet: Set(),
+  }),
+  executePipeline: ({ unionInAndOutNeighbours, emptySet }, inNeighbours, outNeighbours) => {
+    return unionInAndOutNeighbours(inNeighbours || emptySet, outNeighbours || emptySet)
+  }
+})
+// const combineNeighbours = (inNeighbours, outNeighbours) => (inNeighbours || Set()).union(outNeighbours || Set())
+const zipNeighbours = zip(combineNeighbours)
 const getNeighboursByNodeId = (edgesById, nodesById) => {
   const inNeighboursByNodeId = getInNeighboursByNodeId(edgesById, nodesById)
   const outNeighboursByNodeId = getOutNeighboursByNodeId(edgesById, nodesById)
