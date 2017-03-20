@@ -98,76 +98,76 @@ export const unionMap = () => {
   return apply
 }
 
-const MapWithPartialUnion = Record({
-  map: Map(),
-  partialUnion: Map(),
-})
-
-// TODO: test the performance of flattenSet
-// it deletages to flattenMap, which on the provided data (sets indexed by themselves)
-// will detect only addition and removals - nothing will be diffed
-// We need to make sure the continuity of each set is preserved by identifying which
-// Pairs of <removed set, added set> are easily diffable (share edit history)
-export const flattenSet = () => {
-  const convertEachToMap = map(toMap(element => element))
-  const flattenCurrentMap = flattenMap()
-  const convertFlatToSet = toSet()
-
-  const apply: any = (argument) => {
-    return convertFlatToSet(flattenCurrentMap(convertEachToMap(argument)))
+export const zip = (attach) => {
+  if(attach === undefined) {
+    attach = (leftElement, rightElement) => ({ leftElement, rightElement })
   }
 
-  const specialize = () => {
-    return unionSet()
-  }
-  apply.specialize = specialize
+  let currentValue = Map<any,any>()
+  let currentLeftArgument = Map<any,any>()
+  let currentRightArgument = Map<any,any>()
+  let currentAttachInstances = Map<any, any>()
 
-  return apply
-}
+  const apply: any = (newLeftArgument, newRightArgument) => {
+    const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
+    const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
 
-export const flattenMap = () => {
-  let currentArgument = Map()
+    let newAttachInstances = currentAttachInstances
+    let newValue = currentValue
 
-  let currentMapsAndPartialUnions = List()
-  let currentMapToIndex = Map<any, number>()
-
-  const apply: any = (newArgument) => {
-    const argumentDiff = newArgument.diffFrom(currentArgument)
-
-    let newMapsAndPartialUnions = currentMapsAndPartialUnions
-    let newMapToIndex = currentMapToIndex
-    argumentDiff.removed.forEach((map, key) => {
-      const index = newMapToIndex.get(map)
-      if(index === undefined) throw new Error('One of the maps was not seen before')
-      newMapsAndPartialUnions = newMapsAndPartialUnions.splice(index, 1).toList()
-      newMapToIndex = newMapToIndex.remove(map)
-      // Rebuild the partial union
-      // let currentIndex = index + 1
-      // while(newMapsAndPartialUnions.get(currentIndex) !== undefined) {
-
-      // }
-      // newMapsAndPartialUnions.
+    rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
+      const attachInstance = newAttachInstances.get(rightKey)
+      newAttachInstances = newAttachInstances.remove(rightKey)
+      const leftValue = currentLeftArgument.get(rightKey)
+      if(leftValue !== undefined) {
+        newValue = newValue.set(rightKey, attachInstance(leftValue, undefined))
+      } else {
+        newValue = newValue.remove(rightKey)
+      }
     })
-    // argumentDiff.added.forEach((leftValue, key) => {
-    //   const rightValue = currentArgument.get(key)
-    //   if(rightValue === undefined) {
-    //     newValue = newValue.set(key, leftValue)
-    //   }
-    // })
-    // argumentDiff.updated.forEach(({prev, next}, key) => {
-    //   const rightValue = currentArgument.get(key)
-    //   if(rightValue === undefined) {
-    //     newValue = newValue.set(key, next)
-    //   }
-    // })
+    rightArgumentDiff.added.forEach((rightValue, rightKey) => {
+      const attachInstance = attach.specialize ? attach.specialize() : attach
+      newAttachInstances = newAttachInstances.set(rightKey, attachInstance)
+      const leftValue = currentLeftArgument.get(rightKey)
+      newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
+    })
+    rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
+      const attachInstance = newAttachInstances.get(rightKey)
+      const leftValue = currentLeftArgument.get(rightKey)
+      newValue = newValue.set(rightKey, attachInstance(leftValue, next))
+    })
 
-    // currentMapsInOrder = newMapsInOrder
-    // currentCumulativeMapsInOrder = newCumulativeMapsInOrder
+    leftArgumentDiff.removed.forEach((leftValue, leftKey) => {
+      const attachInstance = newAttachInstances.get(leftKey)
+      newAttachInstances = newAttachInstances.remove(leftKey)
+      const rightValue = newRightArgument.get(leftKey)
+      if(rightValue !== undefined) {
+        newValue = newValue.set(leftKey, attachInstance(undefined, rightValue))
+      } else {
+        newValue = newValue.remove(leftKey)
+      }
+    })
+    leftArgumentDiff.added.forEach((leftValue, leftKey) => {
+      const attachInstance = attach.specialize ? attach.specialize() : attach
+      newAttachInstances = newAttachInstances.set(leftKey, attachInstance)
+      const rightValue = newRightArgument.get(leftKey)
+      newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
+    })
+    leftArgumentDiff.updated.forEach(({ prev, next }, leftKey) => {
+      const attachInstance = newAttachInstances.get(leftKey)
+      const rightValue = newRightArgument.get(leftKey)
+      newValue = newValue.set(leftKey, attachInstance(next, rightValue))
+    })
 
-    return currentMapsAndPartialUnions.last()
+    currentValue = newValue
+    currentLeftArgument = newLeftArgument
+    currentRightArgument = newRightArgument
+
+    return newValue
   }
+
   const specialize = () => {
-    return flattenMap()
+    return zip(attach)
   }
   apply.specialize = specialize
 
@@ -346,7 +346,11 @@ export const group = (fn) => {
   return apply
 }
 
-export const map = (fn) => {
+export const map = (fn, { overSet=false } = {}) => {
+  return overSet ? mapOverSet(fn) : mapOverMap(fn)
+}
+
+const mapOverMap = (fn) => {
   let currentFnInstances = Map<any, any>()
   let currentValue = Map()
   let currentArgument = Map()
@@ -372,7 +376,41 @@ export const map = (fn) => {
     return newValue
   }
   const specialize = () => {
-    return map(fn)
+    return mapOverMap(fn)
+  }
+  apply.specialize = specialize
+
+  return apply
+}
+
+const mapOverSet = (fn) => {
+  let currentFnInstances = Map<any, any>()
+  let currentValue = Set()
+  let currentArgument = Set()
+  const apply: any = (newArgument) => {
+    const argumentDiff = newArgument.diffFrom(currentArgument)
+    currentArgument = newArgument
+
+    let newValue = currentValue
+    argumentDiff.removed.forEach(value => {
+      const mapper = currentFnInstances.get(value)
+      currentFnInstances = currentFnInstances.remove(value)
+      newValue = newValue.remove(mapper(value))
+    })
+    argumentDiff.added.forEach(value => {
+      const mapper = fn.specialize ? fn.specialize() : fn
+      currentFnInstances = currentFnInstances.set(value, mapper)
+      newValue = newValue.add(mapper(value))
+    })
+    argumentDiff.updated && argumentDiff.updated.forEach(({prev, next}, key) => {
+      const mapper = currentFnInstances.get(key)
+      newValue = newValue.remove(mapper(prev)).add(mapper(next))
+    })
+    currentValue = newValue
+    return newValue
+  }
+  const specialize = () => {
+    return mapOverSet(fn)
   }
   apply.specialize = specialize
 

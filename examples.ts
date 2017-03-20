@@ -1,6 +1,6 @@
 import { Record, Set, Map } from 'immutable'
 
-import { pipelinePiece, unionMap, leftJoin, group, map, filter, toSet, toMap } from './transformations'
+import { pipelinePiece, unionMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
 
 const posts = Set([
   {id: 'pA'},
@@ -102,37 +102,37 @@ const edges = Set([
 ])
 const edgesById = Map(edges.map(edge => ([edge.get('id'), edge])))
 
-const attachSourceAndTarget = leftJoin(
-  edge => Set([edge.get('source'), edge.get('target')]),
-  (edge, nodes) => {
-    // TODO: Find a better way of doing it (return a Map from the joining fn?)
-    let sourceNode, targetNode
-    if(nodes.first().get('id') === edge.get('source')) {
-      sourceNode = nodes.first()
-      targetNode = nodes.last()
-    } else {
-      sourceNode = nodes.last()
-      targetNode = nodes.fist()
-    }
-    return edge
-      .set('sourceNode', sourceNode)
-      .set('targetNode', targetNode)
-  }
-)
-const isSourceOrTarget = (value, key) => key === 'source' || key === 'target'
-const groupBySourceAndTarget = group(filter(isSourceOrTarget))
-const leaveNodes = map(map(edgeNode => Set([edgeNode.get('sourceNode'), edgeNode.get('targetNode')])))
-const convertToSet = map(toSet())
-const getEdgesByNodeId = (edgesById) => {
-  const edgesWithSourceAndTargetById = attachSourceAndTarget(edgesById, nodesById)
-  const edgesBySourceAndTarget = groupBySourceAndTarget(edgesWithSourceAndTargetById)
-  return convertToSet(leaveNodes(edgesBySourceAndTarget))
-}
-
-console.log('getEdgesByNodeId')
-console.log(
-  getEdgesByNodeId(edgesById)
-)
+// const attachSourceAndTarget = leftJoin(
+//   edge => Set([edge.get('source'), edge.get('target')]),
+//   (edge, nodes) => {
+//     // TODO: Find a better way of doing it (return a Map from the joining fn?)
+//     let sourceNode, targetNode
+//     if(nodes.first().get('id') === edge.get('source')) {
+//       sourceNode = nodes.first()
+//       targetNode = nodes.last()
+//     } else {
+//       sourceNode = nodes.last()
+//       targetNode = nodes.fist()
+//     }
+//     return edge
+//       .set('sourceNode', sourceNode)
+//       .set('targetNode', targetNode)
+//   }
+// )
+// const isSourceOrTarget = (value, key) => key === 'source' || key === 'target'
+// const groupBySourceAndTarget = group(filter(isSourceOrTarget))
+// const leaveNodes = map(map(edgeNode => Set([edgeNode.get('sourceNode'), edgeNode.get('targetNode')])))
+// const convertToSet = map(toSet())
+// const getEdgesByNodeId = (edgesById) => {
+//   const edgesWithSourceAndTargetById = attachSourceAndTarget(edgesById, nodesById)
+//   const edgesBySourceAndTarget = groupBySourceAndTarget(edgesWithSourceAndTargetById)
+//   return convertToSet(leaveNodes(edgesBySourceAndTarget))
+// }
+//
+// console.log('getEdgesByNodeId')
+// console.log(
+//   getEdgesByNodeId(edgesById)
+// )
 
 
 const attachTargetNode = leftJoin(
@@ -143,10 +143,11 @@ const isSource = (value, key) => key === 'source'
 const groupBySource = group(filter(isSource))
 const leaveTargetNode = map(map(edgeNode => edgeNode.get('targetNode')))
 const convertToSet_1 = map(toSet())
+const simplify_1 = map(map(node => node.get('id'), {overSet: true}))
 const getOutNeighboursByNodeId = (edgesById, nodesById) => {
   const edgesWithTargetById = attachTargetNode(edgesById, nodesById)
   const edgesBySourceAndTarget = groupBySource(edgesWithTargetById)
-  return convertToSet_1(leaveTargetNode(edgesBySourceAndTarget))
+  return simplify_1(convertToSet_1(leaveTargetNode(edgesBySourceAndTarget)))
 }
 
 const attachSourceNode = leftJoin(
@@ -157,22 +158,21 @@ const isTarget = (value, key) => key === 'target'
 const groupByTarget = group(filter(isTarget))
 const leaveSourceNode = map(map(edgeNode => edgeNode.get('sourceNode')))
 const convertToSet_2 = map(toSet())
+const simplify_2 = map(map(node => node.get('id'), {overSet: true}))
 const getInNeighboursByNodeId = (edgesById, nodesById) => {
   const edgesWithSourceById = attachSourceNode(edgesById, nodesById)
   const edgesBySourceAndTarget = groupByTarget(edgesWithSourceById)
-  return convertToSet_2(leaveSourceNode(edgesBySourceAndTarget))
+  return simplify_2(convertToSet_2(leaveSourceNode(edgesBySourceAndTarget)))
 }
 
-// TODO: We need diff-mem union
-// TODO: We need a full join for this
-const attachOutNeighbours = leftJoin(
-  (inNeighbours, nodeId) => Set([nodeId]),
-  (inNeighbours, outNeighboursSet) => inNeighbours.union(outNeighboursSet.first())
+// TODO: Use specializable unionMap as the zip attach function, so we can diff-mem each union
+const zipNeighbours = zip(
+  (inNeighbours, outNeighbours) => (inNeighbours || Set()).union(outNeighbours || Set())
 )
 const getNeighboursByNodeId = (edgesById, nodesById) => {
   const inNeighboursByNodeId = getInNeighboursByNodeId(edgesById, nodesById)
   const outNeighboursByNodeId = getOutNeighboursByNodeId(edgesById, nodesById)
-  return attachOutNeighbours(inNeighboursByNodeId, outNeighboursByNodeId)
+  return zipNeighbours(inNeighboursByNodeId, outNeighboursByNodeId)
 }
 
 
