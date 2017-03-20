@@ -1,3 +1,5 @@
+import { inspect } from 'util'
+
 import { Record, Set, Map } from 'immutable'
 
 import { pipelinePiece, unionMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
@@ -35,16 +37,17 @@ const getLikesByPostId = (likesById) => {
 
 const attachLikingUser = leftJoin(
   like => Map([[like.userId, like.userId]]),
-  (like, users) => ({ like: like, user: users})
+  (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.first().id, userName: users.first().name })
 )
 const getLikeUsers = (likesById, usersById) => {
   return attachLikingUser(likesById, usersById)
 }
 
-const groupLikeUsersByPostId = group(likeUser => likeUser.like.postId)
+const groupLikeUsersByPostId = group(likeUser => likeUser.postId)
+const mapLikeUsersByPostIdToSet = map(toSet())
 const getLikeUsersByPostId = (likesById, usersById) => {
   const likeUsersByLikeId = getLikeUsers(likesById, usersById)
-  return groupLikeUsersByPostId(likeUsersByLikeId)
+  return mapLikeUsersByPostIdToSet(groupLikeUsersByPostId(likeUsersByLikeId))
 }
 
 console.log('likesByPostId')
@@ -178,17 +181,17 @@ const getNeighboursByNodeId = (edgesById, nodesById) => {
 
 console.log('getOutNeighboursByNodeId')
 console.log(
-  getOutNeighboursByNodeId(edgesById, nodesById)
+  getOutNeighboursByNodeId(edgesById, nodesById).toJS()
 )
 
 console.log('getInNeighboursByNodeId')
 console.log(
-  getInNeighboursByNodeId(edgesById, nodesById)
+  getInNeighboursByNodeId(edgesById, nodesById).toJS()
 )
 
 console.log('getNeighboursByNodeId')
 console.log(
-  getNeighboursByNodeId(edgesById, nodesById)
+  getNeighboursByNodeId(edgesById, nodesById).toJS()
 )
 
 // Pipeline example - all functions are specializable
@@ -196,7 +199,7 @@ const _getLikeUsers = pipelinePiece({
   createPipeline: () => ({
     attachLikingUser: leftJoin(
       like => Map([[like.userId, like.userId]]),
-      (like, users) => ({ like: like, user: users})
+      (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.first().id, userName: users.first().name })
     )
   }),
   executePipeline: ({ attachLikingUser }, likesById, usersById) => {
@@ -206,12 +209,13 @@ const _getLikeUsers = pipelinePiece({
 
 const _getLikeUsersByPostId = pipelinePiece({
   createPipeline: () => ({
-    groupLikeUsersByPostId: group(likeUser => likeUser.like.postId),
     getLikeUsers: _getLikeUsers.specialize(),
+    groupLikeUsersByPostId: group(likeUser => likeUser.postId),
+    mapLikeUsersByPostIdToSet: map(toSet()),
   }),
-  executePipeline: ({ getLikeUsers, groupLikeUsersByPostId }, likesById, usersById) => {
+  executePipeline: ({ getLikeUsers, groupLikeUsersByPostId, mapLikeUsersByPostIdToSet }, likesById, usersById) => {
     const likeUsersByLikeId = getLikeUsers(likesById, usersById)
-    return groupLikeUsersByPostId(likeUsersByLikeId)
+    return mapLikeUsersByPostIdToSet(groupLikeUsersByPostId(likeUsersByLikeId))
   }
 })
 
@@ -239,6 +243,6 @@ const scopesOfUsersAndLikes = Map({
 })
 
 console.log('mapScopesToLikeUsersByPostId')
-console.log(
-  mapScopesToLikeUsersByPostId(scopesOfUsersAndLikes)
-)
+console.log(inspect(
+  mapScopesToLikeUsersByPostId(scopesOfUsersAndLikes).toJS()
+, { depth: 3 }))
