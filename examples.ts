@@ -1,6 +1,6 @@
 import { Record, Set, Map } from 'immutable'
 
-import { unionMap, leftJoin, group, map, filter, toSet, toMap } from './transformations'
+import { pipelinePiece, unionMap, leftJoin, group, map, filter, toSet, toMap } from './transformations'
 
 const posts = Set([
   {id: 'pA'},
@@ -189,4 +189,56 @@ console.log(
 console.log('getNeighboursByNodeId')
 console.log(
   getNeighboursByNodeId(edgesById, nodesById)
+)
+
+// Pipeline example - all functions are specializable
+const _getLikeUsers = pipelinePiece({
+  createPipeline: () => ({
+    attachLikingUser: leftJoin(
+      like => Map([[like.userId, like.userId]]),
+      (like, users) => ({ like: like, user: users})
+    )
+  }),
+  executePipeline: ({ attachLikingUser }, likesById, usersById) => {
+    return attachLikingUser(likesById, usersById)
+  }
+})
+
+const _getLikeUsersByPostId = pipelinePiece({
+  createPipeline: () => ({
+    groupLikeUsersByPostId: group(likeUser => likeUser.like.postId),
+    getLikeUsers: _getLikeUsers.specialize(),
+  }),
+  executePipeline: ({ getLikeUsers, groupLikeUsersByPostId }, likesById, usersById) => {
+    const likeUsersByLikeId = getLikeUsers(likesById, usersById)
+    return groupLikeUsersByPostId(likeUsersByLikeId)
+  }
+})
+
+const _getLikeUsersByPostIdFromScope = pipelinePiece({
+  createPipeline: () => ({
+    getLikeUsersByPostId: _getLikeUsersByPostId.specialize()
+  }),
+  executePipeline: ({getLikeUsersByPostId}, {likesById, usersById}) => {
+    return getLikeUsersByPostId(likesById, usersById)
+  }
+})
+
+const mapScopesToLikeUsersByPostId = map(_getLikeUsersByPostIdFromScope)
+const scopesOfUsersAndLikes = Map({
+  'a': {
+    likesById: likesById,
+    usersById: usersById,
+  },
+  'b': {
+    likesById: likesById
+      .set('lF', {id: 'lF', postId: 'pD', userId: 'uF'}),
+    usersById: usersById
+      .set('uF', {id: 'uF', name: 'F'}),
+  },
+})
+
+console.log('mapScopesToLikeUsersByPostId')
+console.log(
+  mapScopesToLikeUsersByPostId(scopesOfUsersAndLikes)
 )
