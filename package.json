@@ -1,15 +1,17 @@
 {
   "name": "evolving-immutable",
   "version": "0.0.1",
-  "main": "examples.ts",
+  "main": "transformations.ts",
+  "typings": "transformations.ts",
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.8",
-    "immutable": "git+https://git@github.com/errendir/immutable-js.git#57a4fd8",
-    "ts-node": "^2.1.0",
-    "typescript": "^2.2.1"
+    "immutable": "git+https://git@github.com/errendir/immutable-js.git#57a4fd8"
   },
   "scripts": {
     "start": "ts-node examples.ts"
+  },
+  "devDependencies": {
+    "typescript": "^2.2.1"
   }
 }
