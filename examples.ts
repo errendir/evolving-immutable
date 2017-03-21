@@ -20,6 +20,8 @@ const likes = Set([
   {id: 'lE', postId: 'pD', userId: 'uC'},
 ])
 const likesById = Map(likes.map(like => ([like.id, like])))
+const likesById_plusone = likesById.set('lF', {id: 'lF', postId: 'pD', userId: 'uE'})
+const likesById_plusone_minusone = likesById_plusone.remove('lE')
 
 const users = Set([
   {id: 'uA', name: 'A'},
@@ -29,6 +31,50 @@ const users = Set([
   {id: 'uE', name: 'E'},
 ])
 const usersById = Map(users.map(user => ([user.id, user])))
+
+const simpleGetLikesByPostId = (likesById) => {
+  const likesByPostId = Map<any,any>().asMutable()
+  likesById.forEach((like, likeId) => {
+    likesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+  })
+  return likesByPostId.asImmutable()
+}
+
+const diffMemGetLikesByPostId = (() => {
+  let previousLikesById = Map<any,any>()
+  let previousLikesByPostId = Map<any,any>()
+
+  return (likesById) => {
+    const difference = likesById.diffFrom(previousLikesById)
+
+    let newLikesByPostId = previousLikesByPostId.asMutable()
+
+    difference.added.forEach((like, likeId) => {
+      newLikesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+    })
+    difference.removed.forEach((like, likeId) => {
+      newLikesByPostId.update(like.postId, (likes) => likes.remove(likeId))
+      if(newLikesByPostId.get(like.postId).isEmpty()) {
+        newLikesByPostId.remove(like.postId)
+      }
+    })
+    difference.updated.forEach(({ prev: prevLike, next: nextLike }, likeId) => {
+      if(prevLike.postId !== nextLike.postId) {
+        newLikesByPostId.update(prevLike.postId, (likes) => likes.remove(likeId))
+        if(newLikesByPostId.get(prevLike.postId).isEmpty()) {
+          newLikesByPostId.remove(prevLike.postId)
+        }
+        newLikesByPostId.update(nextLike.postId, (likes) => (likes || Map()).set(likeId, nextLike))
+      } else {
+        newLikesByPostId.update(prevLike.postId, (likes) => likes.set(likeId, nextLike))
+      }
+    })
+
+    previousLikesByPostId = newLikesByPostId.asImmutable()
+    previousLikesById = likesById
+    return previousLikesByPostId
+  }
+})()
 
 const groupLikesByPostId = group(like => like.postId)
 const getLikesByPostId = (likesById) => {
@@ -50,14 +96,34 @@ const getLikeUsersByPostId = (likesById, usersById) => {
   return mapLikeUsersByPostIdToSet(groupLikeUsersByPostId(likeUsersByLikeId))
 }
 
+console.log('simpleGetLikesByPostId')
+console.log(
+  simpleGetLikesByPostId(likesById).toJS()
+)
+
+console.log('diffMemGetLikesByPostId')
+console.log(
+  diffMemGetLikesByPostId(likesById).toJS()
+)
+
+console.log('diffMemGetLikesByPostId(likesById_plusone)')
+console.log(
+  diffMemGetLikesByPostId(likesById_plusone).toJS()
+)
+
+console.log('diffMemGetLikesByPostId(likesById_plusone_minusone)')
+console.log(
+  diffMemGetLikesByPostId(likesById_plusone_minusone).toJS()
+)
+
 console.log('likesByPostId')
 console.log(
   getLikesByPostId(likesById).toJS()
 )
 
-console.log('likesByPostId added')
+console.log('likesByPostId(likesById_plusone)')
 console.log(
-  getLikesByPostId(likesById.set('lF', {id: 'lF', postId: 'pD', userId: 'uE'})).toJS()
+  getLikesByPostId(likesById_plusone).toJS()
 )
 
 console.log('likesByPostId removed')

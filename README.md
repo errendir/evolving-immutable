@@ -26,17 +26,61 @@ const likesById = Map(likes.map(like => ([like.id, like])))
 
 If you want to create an aggregate of likes by post id you could write something like that:
 ```
-const getLikesByPostId = (likesById) => {
-  return group(like => like.postId, likesById)
+const simpleGetLikesByPostId = (likesById) => {
+  const likesByPostId = Map().asMutable()
+  likesById.forEach((like, likeId) => {
+    likesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+  })
+  return likesByPostId.asImmutable()
 }
 ```
 
-The resulting datastructure is computed anew each time `getLikesByPostId` is called. Even if the `likesById` datastructure didn't change (or changed only slightly) the same expensive grouping computation is performed.
+The resulting datastructure is computed anew each time `simpleGetLikesByPostId` is called. Even if the `likesById` datastructure didn't change (or changed only slightly) the same expensive grouping computation is performed.
 
-Instead the `getLikesByPostId` can be rewritten to use evolving-immutable diff-memed aggregattion:
+Instead the `getLikesByPostId` can be rewritten to using differential memization:
 
 ```
-const _getLikesByPostId = pipelinePiece({
+const diffMemGetLikesByPostId = (() => {
+  let previousLikesById = Map()
+  let previousLikesByPostId = Map()
+
+  return (likesById) => {
+    const difference = likesById.diffFrom(previousLikesById)
+
+    let newLikesByPostId = previousLikesByPostId.asMutable()
+
+    difference.added.forEach((like, likeId) => {
+      newLikesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+    })
+    difference.removed.forEach((like, likeId) => {
+      newLikesByPostId.update(like.postId, (likes) => likes.remove(likeId))
+      if(newLikesByPostId.get(like.postId).isEmpty()) {
+        newLikesByPostId.remove(like.postId)
+      }
+    })
+    difference.updated.forEach(({ prev: prevLike, next: nextLike }, likeId) => {
+      if(prevLike.postId !== nextLike.postId) {
+        newLikesByPostId.update(prevLike.postId, (likes) => likes.remove(likeId))
+        if(newLikesByPostId.get(prevLike.postId).isEmpty()) {
+          newLikesByPostId.remove(prevLike.postId)
+        }
+        newLikesByPostId.update(nextLike.postId, (likes) => (likes || Map()).set(likeId, nextLike))
+      } else {
+        newLikesByPostId.update(prevLike.postId, (likes) => likes.set(likeId, nextLike))
+      }
+    })
+
+    previousLikesByPostId = newLikesByPostId.asImmutable()
+    previousLikesById = likesById
+    return previousLikesByPostId
+  }
+})()
+```
+
+Now each time `diffMemGetLikesByPostId` is called, the data used in the previous computation is reused and only the changes in the `likesById` argument are applied to the newly computed result. Writing all your aggregations like that can be cumbersome, and that is what evolving-immutable is for:
+
+```
+const getLikesByPostId = pipelinePiece({
   createPipeline: () => ({
     groupLikesByPostId: group(like => like.postId)
   }),
@@ -45,5 +89,3 @@ const _getLikesByPostId = pipelinePiece({
   }
 })
 ```
-
-Now each time `_getLikesByPostId`, the data used in the previous computation is reused and only the changes in the `likesById` argument are applied to the newly computed result. 
