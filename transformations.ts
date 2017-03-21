@@ -199,7 +199,7 @@ export const leftJoin = (fn, attach) => {
         leftToRight = leftToRight.update(leftKey, rightElements => rightElements.remove(rightValue))
         const attachInstance = currentAttachInstances.get(leftKey)
         // Use the currentLeftArgument, since the leftElements are updated in the last three loops
-        newValue = newValue.update(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
       })
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
@@ -207,7 +207,7 @@ export const leftJoin = (fn, attach) => {
       allLeftKeys.forEach(leftKey => {
         leftToRight = leftToRight.update(leftKey, rightElements => (rightElements || Set()).add(rightValue))
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue = newValue.update(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
       })
     })
     rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
@@ -215,7 +215,7 @@ export const leftJoin = (fn, attach) => {
       allLeftKeys.forEach(leftKey => {
         leftToRight = leftToRight.update(leftKey, rightElements => rightElements.remove(prev).add(next))
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue = newValue.update(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
       })
     })
 
@@ -266,7 +266,7 @@ export const leftJoin = (fn, attach) => {
         })
         return newRightElements
       })
-      newValue = newValue.update(key, attachInstance(next, leftToRight.get(key)))
+      newValue = newValue.set(key, attachInstance(next, leftToRight.get(key)))
     })
 
     currentValue = newValue
