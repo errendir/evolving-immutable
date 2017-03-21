@@ -174,18 +174,20 @@ export const zip = (attach) => {
   return apply
 }
 
-export const leftJoin = (fn, attach) => {
-  if(attach === undefined) {
-    attach = (value, rightElements) => ({ value, group: rightElements })
+export const leftJoin = (mapLeftToSetOfRightKeys, attachLeftWithMapOfRight) => {
+  if(attachLeftWithMapOfRight === undefined) {
+    attachLeftWithMapOfRight = (value, rightElements) => ({ value, group: rightElements })
   }
 
-  let currentFnInstances = Map<any, any>()
-  let currentAttachInstances = Map<any, any>()
   let currentValue = Map<any,any>()
-  let rightToLeft = Map<any, Set<any>>()
-  let leftToRight = Map<any, Set<any>>()
   let currentLeftArgument = Map()
   let currentRightArgument = Map()
+
+  let currentFnInstances = Map<any, any>().asMutable()
+  let currentAttachInstances = Map<any, any>().asMutable()
+  let rightKeyToLeftKeys = Map<any, Set<any>>().asMutable()
+  let leftKeyToMapOfRight = Map<any, Map<any, any>>().asMutable()
+
   const apply: any = (newLeftArgument, newRightArgument) => {
     const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
     const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
@@ -193,80 +195,75 @@ export const leftJoin = (fn, attach) => {
     let newValue = currentValue
 
     rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
-      const allLeftKeys = rightToLeft.get(rightKey) || emptySet
-      rightToLeft = rightToLeft.remove(rightKey)
+      const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptySet
+      rightKeyToLeftKeys = rightKeyToLeftKeys.remove(rightKey)
       allLeftKeys.forEach(leftKey => {
-        leftToRight = leftToRight.update(leftKey, rightElements => rightElements.remove(rightValue))
+        leftKeyToMapOfRight.update(leftKey, rightElements => rightElements.remove(rightKey))
         const attachInstance = currentAttachInstances.get(leftKey)
         // Use the currentLeftArgument, since the leftElements are updated in the last three loops
-        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
       })
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
-      const allLeftKeys = rightToLeft.get(rightKey) || emptySet
+      const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptySet
       allLeftKeys.forEach(leftKey => {
-        leftToRight = leftToRight.update(leftKey, rightElements => (rightElements || Set()).add(rightValue))
+        leftKeyToMapOfRight.update(leftKey, rightElements => (rightElements || Map()).set(rightKey, rightValue))
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
       })
     })
     rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
-      const allLeftKeys = rightToLeft.get(rightKey) || emptySet
+      const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptySet
       allLeftKeys.forEach(leftKey => {
-        leftToRight = leftToRight.update(leftKey, rightElements => rightElements.remove(prev).add(next))
+        leftKeyToMapOfRight.update(leftKey, rightElements => rightElements.set(rightKey, next))
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftToRight.get(leftKey)))
+        newValue = newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
       })
     })
 
-    leftArgumentDiff.removed.forEach((value, key) => {
-      const fnInstance = currentFnInstances.get(key)
-      const attachInstance = currentAttachInstances.get(key)
-      currentFnInstances = currentFnInstances.remove(key)
-      currentAttachInstances = currentAttachInstances.remove(key)
-      // TODO: Remove it from the rightToLeft
-      // const rightKeys = fnInstance(value, key)
-      // rightKeys.forEach(rightKey => {
-      //   rightToLeft = rightToLeft.update(rightKey, leftKeys => leftKeys.remove(key))
-      // })
-      leftToRight = leftToRight.remove(key)
-      newValue = newValue.remove(key)
+    leftArgumentDiff.removed.forEach((value, leftKey) => {
+      currentFnInstances.remove(leftKey)
+      currentAttachInstances.remove(leftKey)
+      leftKeyToMapOfRight.get(leftKey).forEach((rightValue, rightKey) => {
+        rightKeyToLeftKeys.update(rightKey, leftKeys => leftKeys.remove(leftKey))
+      })
+      leftKeyToMapOfRight.remove(leftKey)
+      newValue = newValue.remove(leftKey)
     })
     leftArgumentDiff.added.forEach((value, key) => {
-      const fnInstance = fn.specialize ? fn.specialize() : fn
-      const attachInstance = attach.specialize ? attach.specialize() : attach
+      const fnInstance = mapLeftToSetOfRightKeys.specialize 
+        ? mapLeftToSetOfRightKeys.specialize() 
+        : mapLeftToSetOfRightKeys
+      const attachInstance = attachLeftWithMapOfRight.specialize ? attachLeftWithMapOfRight.specialize() : attachLeftWithMapOfRight
       const rightKeys = fnInstance(value, key)
       // TODO: Diff-mem the following map! Also make sure undefined doesn't land there
-      const rightElements = rightKeys.map(rightKey => newRightArgument.get(rightKey))
+      const mapOfRight = rightKeys.toMap().map(rightKey => newRightArgument.get(rightKey))
       rightKeys.forEach(rightKey => {
-        rightToLeft = rightToLeft.update(rightKey, leftKeys => (leftKeys || Set()).add(key))
+        rightKeyToLeftKeys = rightKeyToLeftKeys.update(rightKey, leftKeys => (leftKeys || Set()).add(key))
       })
-      leftToRight = leftToRight.set(key, rightElements)
-      currentFnInstances = currentFnInstances.set(key, fnInstance)
-      currentAttachInstances = currentAttachInstances.set(key, attachInstance)
-      newValue = newValue.set(key, attachInstance(value, rightElements))
+      leftKeyToMapOfRight.set(key, mapOfRight)
+      currentFnInstances.set(key, fnInstance)
+      currentAttachInstances.set(key, attachInstance)
+      newValue = newValue.set(key, attachInstance(value, mapOfRight))
     })
-    leftArgumentDiff.updated.forEach(({prev, next}, key) => {
-      const fnInstance = currentFnInstances.get(key)
-      const attachInstance = currentAttachInstances.get(key)
-      const prevRightKeys = fnInstance(prev, key)
-      const nextRightKeys = fnInstance(next, key)
+    leftArgumentDiff.updated.forEach(({prev, next}, leftKey) => {
+      const fnInstance = currentFnInstances.get(leftKey)
+      const attachInstance = currentAttachInstances.get(leftKey)
+      const prevRightKeys = fnInstance(prev, leftKey)
+      const nextRightKeys = fnInstance(next, leftKey)
       const rightKeysDiff = nextRightKeys.diffFrom(prevRightKeys)
+
+      let newMapOfRight = leftKeyToMapOfRight.get(leftKey)
       rightKeysDiff.added.forEach(rightKey => {
-        rightToLeft = rightToLeft.update(rightKey, leftKeys => (leftKeys || Set()).add(key))
+        newMapOfRight = newMapOfRight.set(rightKey, newRightArgument.get(rightKey))
+        rightKeyToLeftKeys.update(rightKey, leftKeys => (leftKeys || Set()).add(leftKey))
       })
       rightKeysDiff.removed.forEach(rightKey => {
-        rightToLeft = rightToLeft.update(rightKey, leftKeys => leftKeys.remove(key))
+        newMapOfRight = newMapOfRight.remove(rightKey)
+        rightKeyToLeftKeys.update(rightKey, leftKeys => leftKeys.remove(leftKey))
       })
-      leftToRight.update(key, rightElements => {
-        let newRightElements = rightElements
-          .merge(rightKeysDiff.added.map(rightKey => newRightArgument.get(rightKey)))
-        rightKeysDiff.removed.map(rightKey => {
-          newRightElements = newRightElements.remove(rightKey)
-        })
-        return newRightElements
-      })
-      newValue = newValue.set(key, attachInstance(next, leftToRight.get(key)))
+      leftKeyToMapOfRight.set(leftKey, newMapOfRight)
+      newValue = newValue.set(leftKey, attachInstance(next, newMapOfRight))
     })
 
     currentValue = newValue
@@ -276,7 +273,7 @@ export const leftJoin = (fn, attach) => {
     return newValue
   }
   const specialize = () => {
-    return leftJoin(fn, attach)
+    return leftJoin(mapLeftToSetOfRightKeys, attachLeftWithMapOfRight)
   }
   apply.specialize = specialize
 

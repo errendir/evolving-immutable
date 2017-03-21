@@ -82,8 +82,8 @@ const getLikesByPostId = (likesById) => {
 }
 
 const attachLikingUser = leftJoin(
-  like => Map([[like.userId, like.userId]]),
-  (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.first().id, userName: users.first().name })
+  like => Set([like.userId]),
+  (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
 )
 const getLikeUsers = (likesById, usersById) => {
   return attachLikingUser(likesById, usersById)
@@ -174,18 +174,9 @@ const edgesById = Map(edges.map(edge => ([edge.get('id'), edge])))
 const attachSourceAndTarget = leftJoin(
   edge => Set([edge.get('source'), edge.get('target')]),
   (edge, nodes) => {
-    // TODO: Find a better way of doing it (return a Map from the joining fn?)
-    let sourceNode, targetNode
-    if(nodes.first().get('id') === edge.get('source')) {
-      sourceNode = nodes.first()
-      targetNode = nodes.last()
-    } else {
-      sourceNode = nodes.last()
-      targetNode = nodes.fist()
-    }
     return edge
-      .set('sourceNode', sourceNode)
-      .set('targetNode', targetNode)
+      .set('sourceNode', nodes.get(edge.get('source')))
+      .set('targetNode', nodes.get(edge.get('target')))
   }
 )
 const isSourceOrTarget = (value, key) => key === 'source' || key === 'target'
@@ -207,7 +198,7 @@ console.log(inspect(
 
 const attachTargetNode = leftJoin(
   edge => Set([edge.get('target')]),
-  (edge, nodes) => edge.set('targetNode', nodes.first())
+  (edge, nodes) => edge.set('targetNode', nodes.get(edge.get('target')))
 )
 const isSource = (value, key) => key === 'source'
 const groupBySource = group(filter(isSource))
@@ -222,7 +213,7 @@ const getOutNeighboursByNodeId = (edgesById, nodesById) => {
 
 const attachSourceNode = leftJoin(
   edge => Set([edge.get('source')]),
-  (edge, nodes) => edge.set('sourceNode', nodes.first())
+  (edge, nodes) => edge.set('sourceNode', nodes.get(edge.get('source')))
 )
 const isTarget = (value, key) => key === 'target'
 const groupByTarget = group(filter(isTarget))
@@ -282,8 +273,8 @@ const _getLikesByPostId = pipelinePiece({
 const _getLikeUsers = pipelinePiece({
   createPipeline: () => ({
     attachLikingUser: leftJoin(
-      like => Map([[like.userId, like.userId]]),
-      (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.first().id, userName: users.first().name })
+      like => Set([like.userId]),
+      (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
     )
   }),
   executePipeline: ({ attachLikingUser }, likesById, usersById) => {
