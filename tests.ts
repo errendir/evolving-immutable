@@ -19,7 +19,7 @@ describe('filter', () => {
   })
 
   it('produced correct map when argument changes in discontinuous manner', () => {
-    const map1 = Map({ a: { value: 8 }, b: { value: 11 }, c: { value: 9 } })
+    const map1 = Map({ a: { value: 8 }, b: { value: 11 }, c: { value: 9 }, d: { value: 3 } })
     const map2 = Map({ a: { value: 14 }, b: { value: 12 }, c: { value: 8 } })
 
     const lowerThan10 = filter(element => element.value < 10)
@@ -233,5 +233,20 @@ describe('toSet', () => {
     console.assert(convertToSet(map1).has(object1))
     console.assert(convertToSet(map2).has(object1))
     console.assert(convertToSet(map3).has(object1))
+  })
+})
+
+describe('toMap', () => {
+  it('produces a map with entries generated from argument set values by attaching a key returned for each value by the attach function', () => {
+    const o1 = { id: 1, val: 1}, o2 = { id: 2, val: 2}, o3 = { id: 3, val: 3}
+    const set = Set([o1, o2, o3])
+
+    const convertToMap = toMap(value => value.id)
+    const result = convertToMap(set)
+
+    console.assert(result.keySeq().toSet().equals(Set([1,2,3])))
+    console.assert(result.get(1) === o1)
+    console.assert(result.get(2) === o2)
+    console.assert(result.get(3) === o3)
   })
 })
