@@ -162,6 +162,7 @@ export const zip = (attach) => {
     currentValue = newValue
     currentLeftArgument = newLeftArgument
     currentRightArgument = newRightArgument
+    currentAttachInstances = newAttachInstances
 
     return newValue
   }
