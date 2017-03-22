@@ -445,6 +445,8 @@ export const filter = (fn) => {
         newValue = newValue.set(key, next)
       } else if (isIn && !shouldBeIn) {
         newValue = newValue.remove(key)
+      } else if (isIn && shouldBeIn && prev !== next) {
+        newValue = newValue.set(key, next)
       }
     })
     currentValue = newValue
