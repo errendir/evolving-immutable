@@ -460,20 +460,39 @@ export const filter = (fn) => {
 export const toSet = () => {
   let currentValue = Set()
   let currentArgument = Map()
+
+  let valueToKeys = Map<any,Set<any>>().asMutable()
+
   const apply: any = (newArgument) => {
     const argumentDiff = newArgument.diffFrom(currentArgument)
-    currentArgument = newArgument
 
     let newValue = currentValue
+    const removeKeyValue = (value, key) => {
+      valueToKeys.update(value, keys => keys.remove(key))
+      if(valueToKeys.get(value).isEmpty()) {
+        valueToKeys.remove(value)
+        newValue = newValue.remove(value)
+      }
+    }
+    const addKeyValue = (value, key) => {
+      valueToKeys.update(value, keys => (keys || Set()).add(key))
+      if(valueToKeys.get(value).size === 1) {
+        newValue = newValue.add(value)
+      }
+    }
+
     argumentDiff.removed.forEach((value, key) => {
-      newValue = newValue.remove(value)
+      removeKeyValue(value, key)
     })
     argumentDiff.added.forEach((value, key) => {
-      newValue = newValue.add(value)
+      addKeyValue(value, key)
     })
     argumentDiff.updated.forEach(({prev, next}, key) => {
-      newValue = newValue.remove(prev).add(next)
+      removeKeyValue(prev, key)
+      addKeyValue(next, key)
     })
+
+    currentArgument = newArgument
     currentValue = newValue
     return newValue
   }
@@ -495,7 +514,7 @@ export const toMap = (keyFn) => {
     let newValue = currentValue
     argumentDiff.removed.forEach(value => {
       const key = keyFn(value)
-      newValue = newValue.remove(value)
+      newValue = newValue.remove(key)
     })
     argumentDiff.added.forEach(value => {
       const key = keyFn(value)
