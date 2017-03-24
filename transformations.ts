@@ -282,8 +282,8 @@ export const leftJoin = (mapLeftToSetOfRightKeys, attachLeftWithMapOfRight) => {
 }
 
 export const group = (fn) => {
-  let currentFnInstances = Map<any, any>()
-  let currentValue = Map<any,any>()
+  let currentFnInstances = Map<any, any>().asMutable()
+  let currentValue = Map<any,any>().asMutable()
   let currentArgument = Map()
 
   const groupsSentinel = []
@@ -302,39 +302,50 @@ export const group = (fn) => {
     const argumentDiff = newArgument.diffFrom(currentArgument)
     currentArgument = newArgument
 
-    let newValue = currentValue
     argumentDiff.removed.forEach((value, key) => {
       const fnInstance = currentFnInstances.get(key)
       const groups = findGroups(fnInstance(value, key))
-      currentFnInstances = currentFnInstances.remove(key)
+      currentFnInstances.remove(key)
       groups.forEach(group => {
-        newValue = newValue.update(group, (subCollection) => subCollection.remove(key))
+        const prevSubCollection = currentValue.get(group)
+        const nextSubCollection = prevSubCollection.remove(key)
+        if(nextSubCollection.isEmpty()) {
+          currentValue.remove(group)
+        } else {
+          currentValue.set(group, nextSubCollection)
+        }
       })
     })
     argumentDiff.added.forEach((value, key) => {
       const fnInstance = fn.specialize ? fn.specialize() : fn
       const groups = findGroups(fnInstance(value, key))
-      currentFnInstances = currentFnInstances.set(key, fnInstance)
+      currentFnInstances.set(key, fnInstance)
       groups.forEach(group => {
-        newValue = newValue.update(group, (subCollection) => (subCollection || Map()).set(key,value))
+        currentValue.update(group, (subCollection) => (subCollection || Map()).set(key,value))
       })
     })
     argumentDiff.updated.forEach(({prev, next}, key) => {
       const fnInstance = currentFnInstances.get(key)
       const prevGroups = findGroups(fnInstance(prev, key))
-      const nextGroups = findGroups(fnInstance(next, key))
-      // TODO: consider using diff to optimize this operation
+      // TODO: consider using diff to only update groups that changed
       prevGroups.forEach(prevGroup => {
-        newValue = newValue
-          .update(prevGroup, (subCollection) => subCollection.remove(key))
+        const prevSubCollection = currentValue.get(prevGroup)
+        const nextSubCollection = prevSubCollection.remove(key)
+        if(nextSubCollection.isEmpty()) {
+          currentValue.remove(prevGroup)
+        } else {
+          currentValue.set(prevGroup, nextSubCollection)
+        }
       })
+      const nextGroups = findGroups(fnInstance(next, key))
       nextGroups.forEach(nextGroup => {
-        newValue = newValue
+        currentValue
           .update(nextGroup, (subCollection) => (subCollection || Map()).set(key,next))
       })
     })
-    currentValue = newValue
-    return newValue
+    const result = currentValue.asImmutable()
+    currentValue = result.asMutable()
+    return result
   }
   const specialize = () => {
     return group(fn)

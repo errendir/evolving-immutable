@@ -146,7 +146,7 @@ describe('group', () => {
     console.assert(groupedObjects.keySeq().toSet().has(11))
     console.assert(groupedObjects.keySeq().toSet().has(12))
   })
-  it('produces a map with values being maps of all elements belonging to a particual group', () => {
+  it('produces a map of maps of all elements belonging to a particual group', () => {
     const map = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
 
     const groupByV = group(object => object.v)
@@ -158,6 +158,37 @@ describe('group', () => {
     console.assert(groupedObjects.get(11).get('b') === map.get('b'))
     console.assert(groupedObjects.get(12).has('c'))
     console.assert(groupedObjects.get(12).get('c') === map.get('c'))
+  })
+  it('correctly moves an element from one group to another when ran on a modified argument', () => {
+    const map0 = Map({})
+    const map1 = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
+    const map2 = map1.set('a', { v: 12 })
+
+    const groupByV = group(object => object.v)
+    groupByV(map0)
+    groupByV(map1)
+    const groupedObjects = groupByV(map2)
+
+    console.assert(groupedObjects.get(11).has('b'))
+    console.assert(groupedObjects.get(11).get('b') === map2.get('b'))
+    console.assert(groupedObjects.get(12).has('a'))
+    console.assert(groupedObjects.get(12).get('a') === map2.get('a'))
+    console.assert(groupedObjects.get(12).has('c'))
+    console.assert(groupedObjects.get(12).get('c') === map2.get('c'))
+  })
+
+  it('removes a group from the resulting map if no argument value remains in the group', () => {
+    const map0 = Map({})
+    const map1 = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
+    const map2 = map1.set('c', { v: 11 })
+
+    const groupByV = group(object => object.v)
+    groupByV(map0)
+    groupByV(map1)
+    const groupedObjects = groupByV(map2)
+
+    console.log('groupedObjects', groupedObjects.toJS())
+    console.assert(!groupedObjects.has(12))
   })
 })
 
