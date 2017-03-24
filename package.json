@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "ts-node examples.ts",
-    "test": "mocha --require ts-node/register tests.ts"
+    "test": "mocha --require ts-node/register tests.ts",
+    "perf": "ts-node performance.ts"
   },
   "devDependencies": {
     "@types/mocha": "^2.2.40",

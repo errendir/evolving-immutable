@@ -14,7 +14,7 @@ If a denormalized object must be computed from an immutable object it has to be 
 
 Imagine you have the `likesById` object:
 ```
-const likes = Set([
+const likes = immutable.Set([
   {id: 'lA', postId: 'pA', userId: 'uA'},
   {id: 'lB', postId: 'pB', userId: 'uB'},
   {id: 'lC', postId: 'pC', userId: 'uC'},
@@ -27,9 +27,9 @@ const likesById = Map(likes.map(like => ([like.id, like])))
 If you want to create an aggregate of likes by post id you could write something like that:
 ```
 const simpleGetLikesByPostId = (likesById) => {
-  const likesByPostId = Map().asMutable()
+  const likesByPostId = immutable.Map().asMutable()
   likesById.forEach((like, likeId) => {
-    likesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+    likesByPostId.update(like.postId, (likes) => (likes || immutable.Map()).set(likeId, like))
   })
   return likesByPostId.asImmutable()
 }
@@ -41,8 +41,8 @@ Instead the `getLikesByPostId` can be rewritten to using differential memization
 
 ```
 const diffMemGetLikesByPostId = (() => {
-  let previousLikesById = Map()
-  let previousLikesByPostId = Map()
+  let previousLikesById = immutable.Map()
+  let previousLikesByPostId = immutable.Map()
 
   return (likesById) => {
     const difference = likesById.diffFrom(previousLikesById)
@@ -50,7 +50,7 @@ const diffMemGetLikesByPostId = (() => {
     let newLikesByPostId = previousLikesByPostId.asMutable()
 
     difference.added.forEach((like, likeId) => {
-      newLikesByPostId.update(like.postId, (likes) => (likes || Map()).set(likeId, like))
+      newLikesByPostId.update(like.postId, (likes) => (likes || immutable.Map()).set(likeId, like))
     })
     difference.removed.forEach((like, likeId) => {
       newLikesByPostId.update(like.postId, (likes) => likes.remove(likeId))
@@ -64,7 +64,7 @@ const diffMemGetLikesByPostId = (() => {
         if(newLikesByPostId.get(prevLike.postId).isEmpty()) {
           newLikesByPostId.remove(prevLike.postId)
         }
-        newLikesByPostId.update(nextLike.postId, (likes) => (likes || Map()).set(likeId, nextLike))
+        newLikesByPostId.update(nextLike.postId, (likes) => (likes || immutable.Map()).set(likeId, nextLike))
       } else {
         newLikesByPostId.update(prevLike.postId, (likes) => likes.set(likeId, nextLike))
       }
