@@ -46,6 +46,17 @@ export const semiPureFunction = ({ createMemory, executeFunction }) => {
   return apply
 }
 
+export const composeFunctions = (...functions) => {
+  return semiPureFunction({
+    createMemory: () => ({
+      functionInstances: functions.map(fn => fn.specialize ? fn.specialize() : fn)
+    }),
+    executeFunction: ({ functionInstances }, argument) => {
+      return functionInstances.reduce((result, functionInstance) => functionInstance(result), argument)
+    }
+  })
+}
+
 // TODO: Optimize this (don't use unionMap - write one generic union)
 export const unionSet = () => {
   const convertLeftToMap = toMap(element => element)

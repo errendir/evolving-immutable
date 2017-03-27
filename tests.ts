@@ -2,7 +2,7 @@ import { Set, Map } from 'immutable'
 
 import {
   memoizeForRecentArguments,
-  semiPureFunction,
+  semiPureFunction, composeFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from './transformations'
@@ -24,6 +24,25 @@ describe('memoizeForRecentArguments', () => {
     const hash2_2 = objHash(obj2)
     console.assert(hash1_1 === hash1_2)
     console.assert(hash2_1 === hash2_2)
+  })
+})
+
+describe('composeFunctions', () => {
+  it('preserves the internal memoization of all the composed functions', () => {
+    const appendOneMoreThing = (map) => map.set('one-more-thing', { value: 11 })
+    let nextValue = 0
+    const extractTheFake = map((object) => nextValue++)
+
+    const process1 = composeFunctions(appendOneMoreThing, extractTheFake)
+
+    const map1 = Map({ a: { value: 12 }, b: { value: 13 }})
+
+    const result1 = process1(map1)
+    const result2 = process1(map1)
+
+    console.assert(result1.get('a') === result2.get('a'))
+    console.assert(result1.get('b') === result2.get('b'))
+    console.assert(result1.get('one-more-thing') !== result2.get('one-more-thing'))
   })
 })
 
@@ -208,7 +227,6 @@ describe('group', () => {
     groupByV(map1)
     const groupedObjects = groupByV(map2)
 
-    console.log('groupedObjects', groupedObjects.toJS())
     console.assert(!groupedObjects.has(12))
   })
 })
