@@ -2,7 +2,7 @@ import { inspect } from 'util'
 
 import { Record, Set, Map } from 'immutable'
 
-import { pipelinePiece, unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
+import { semiPureFunction, unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
 
 const posts = Set([
   {id: 'pA'},
@@ -227,12 +227,12 @@ const getInNeighboursByNodeId = (edgesById, nodesById) => {
 }
 
 // We are using a specializable `combineNeighbours` as the zip attach function, so we can diff-mem each union
-const combineNeighbours = pipelinePiece({
-  createPipeline: () => ({
+const combineNeighbours = semiPureFunction({
+  createMemory: () => ({
     unionInAndOutNeighbours: unionSet(),
     emptySet: Set(),
   }),
-  executePipeline: ({ unionInAndOutNeighbours, emptySet }, inNeighbours, outNeighbours) => {
+  executeFunction: ({ unionInAndOutNeighbours, emptySet }, inNeighbours, outNeighbours) => {
     return unionInAndOutNeighbours(inNeighbours || emptySet, outNeighbours || emptySet)
   }
 })
@@ -261,44 +261,44 @@ console.log(
 )
 
 // Pipeline example - all functions are specializable
-const _getLikesByPostId = pipelinePiece({
-  createPipeline: () => ({
+const _getLikesByPostId = semiPureFunction({
+  createMemory: () => ({
     groupLikesByPostId: group(like => like.postId)
   }),
-  executePipeline: ({ groupLikesByPostId }, likesById) => {
+  executeFunction: ({ groupLikesByPostId }, likesById) => {
     return groupLikesByPostId(likesById)
   }
 })
 
-const _getLikeUsers = pipelinePiece({
-  createPipeline: () => ({
+const _getLikeUsers = semiPureFunction({
+  createMemory: () => ({
     attachLikingUser: leftJoin(
       like => Set([like.userId]),
       (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
     )
   }),
-  executePipeline: ({ attachLikingUser }, likesById, usersById) => {
+  executeFunction: ({ attachLikingUser }, likesById, usersById) => {
     return attachLikingUser(likesById, usersById)
   }
 })
 
-const _getLikeUsersByPostId = pipelinePiece({
-  createPipeline: () => ({
+const _getLikeUsersByPostId = semiPureFunction({
+  createMemory: () => ({
     getLikeUsers: _getLikeUsers.specialize(),
     groupLikeUsersByPostId: group(likeUser => likeUser.postId),
     mapLikeUsersByPostIdToSet: map(toSet()),
   }),
-  executePipeline: ({ getLikeUsers, groupLikeUsersByPostId, mapLikeUsersByPostIdToSet }, likesById, usersById) => {
+  executeFunction: ({ getLikeUsers, groupLikeUsersByPostId, mapLikeUsersByPostIdToSet }, likesById, usersById) => {
     const likeUsersByLikeId = getLikeUsers(likesById, usersById)
     return mapLikeUsersByPostIdToSet(groupLikeUsersByPostId(likeUsersByLikeId))
   }
 })
 
-const _getLikeUsersByPostIdFromScope = pipelinePiece({
-  createPipeline: () => ({
+const _getLikeUsersByPostIdFromScope = semiPureFunction({
+  createMemory: () => ({
     getLikeUsersByPostId: _getLikeUsersByPostId.specialize()
   }),
-  executePipeline: ({getLikeUsersByPostId}, {likesById, usersById}) => {
+  executeFunction: ({getLikeUsersByPostId}, {likesById, usersById}) => {
     return getLikeUsersByPostId(likesById, usersById)
   }
 })

@@ -2,15 +2,44 @@ import { Set, Map, Iterable, List, Record } from 'immutable'
 
 const emptySet = Set()
 
-export const pipelinePiece = ({ createPipeline, executePipeline }) => {
-  const pipeline = createPipeline()
+export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={}) => {
+  return semiPureFunction({
+    createMemory: () => ({
+      recentArgumentsValues: [],
+      executeFunction: executeFunction.specialize ? executeFunction.specialize() : executeFunction
+    }),
+    executeFunction: ({ recentArgumentsValues, executeFunction }, ...args) => {
+      const pastArgumentsValue = recentArgumentsValues
+        .find(({ arguments: recentArguments }) => {
+          if(recentArguments.length !== args.length) return false
+          for(let i=0; i<recentArguments.length; ++i) {
+            if(recentArguments[i] !== args[i]) return false
+          }
+          return true
+        })
+      if(pastArgumentsValue !== undefined) {
+        return pastArgumentsValue.value
+      } else {
+        const newValue = executeFunction(...args)
+        while (recentArgumentsValues.length >= historyLength) {
+          recentArgumentsValues.shift()
+        }
+        recentArgumentsValues.push({ arguments: args, value: newValue })
+        return newValue
+      }
+    }
+  })
+}
+
+export const semiPureFunction = ({ createMemory, executeFunction }) => {
+  const pipeline = createMemory()
 
   const apply: any = (...args) => {
-    return executePipeline(pipeline, ...args)
+    return executeFunction(pipeline, ...args)
   }
 
   const specialize = () => {
-    return pipelinePiece({ createPipeline, executePipeline })
+    return semiPureFunction({ createMemory, executeFunction })
   }
   apply.specialize = specialize
 

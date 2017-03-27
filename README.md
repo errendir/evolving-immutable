@@ -80,11 +80,11 @@ const diffMemGetLikesByPostId = (() => {
 Now each time `diffMemGetLikesByPostId` is called, the data used in the previous computation is reused and only the changes in the `likesById` argument are applied to the newly computed result. Writing all your aggregations like that can be cumbersome, and that is what evolving-immutable is for:
 
 ```
-const getLikesByPostId = pipelinePiece({
-  createPipeline: () => ({
+const getLikesByPostId = semiPureFunction({
+  createMemory: () => ({
     groupLikesByPostId: group(like => like.postId)
   }),
-  executePipeline: ({ groupLikesByPostId }, likesById) => {
+  executeFunction: ({ groupLikesByPostId }, likesById) => {
     return groupLikesByPostId(likesById)
   }
 })

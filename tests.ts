@@ -1,10 +1,31 @@
 import { Set, Map } from 'immutable'
 
-import { 
-  pipelinePiece,
+import {
+  memoizeForRecentArguments,
+  semiPureFunction,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from './transformations'
+
+describe('memoizeForRecentArguments', () => {
+  it('produces a function that returns cached value if called with the arguments it has recently been called with', () => {
+    // const decimalPart = (number) => Math.abs(number) - Math.floor(Math.abs(number))
+    // const largeNumber = 1000000
+    // const giveMeTheFirstPseudoRandomValue = (seed) => decimalPart(Math.sin(seed*largeNumber)*largeNumber)
+
+    const objHash = memoizeForRecentArguments(Math.random, { historyLength: 20 })
+
+    const obj1 = {}
+    const obj2 = {}
+    
+    const hash1_1 = objHash(obj1)
+    const hash2_1 = objHash(obj2)
+    const hash1_2 = objHash(obj1)
+    const hash2_2 = objHash(obj2)
+    console.assert(hash1_1 === hash1_2)
+    console.assert(hash2_1 === hash2_2)
+  })
+})
 
 describe('filter', () => {
   it('produces a map with all the entries of the argument map for which the provided predicate function returns truthy', () => {
