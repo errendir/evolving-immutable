@@ -233,10 +233,12 @@ describe('group', () => {
 
 describe('leftJoin', () => {
   it('produces a map with each key of the first argument map', () => {
+    interface Left { otherEnd: string }
     const mapL = Map({ 'a': { otherEnd: 'a' }, 'b': { otherEnd: 'b' } })
+    interface Right { }
     const mapR = Map({ 'a': {}, 'b': {}, 'c': {} })
 
-    const leftJoinLR = leftJoin(
+    const leftJoinLR = leftJoin<string, Left, string, Right, {left: Left, right: Right}>(
       (left) => Set([left.otherEnd]),
       (left, rights) => ({ left, right: rights.get(left.otherEnd) })
     )
@@ -246,16 +248,18 @@ describe('leftJoin', () => {
   })
 
   it('uses the first provided function to find the values in the second argument map', () => {
+    interface L { id: number, uId: number }
     const l1 = { id: 1, uId: 1 }
     const l2 = { id: 2, uId: 2 }
     const l3 = { id: 3, uId: 3 }
-    const mapL = Map([l1, l2, l3].map(l => ([l.id, l])))
+    const mapL = Map<number, L>([l1, l2, l3].map(l => ([l.id, l])))
+    interface U { id: number }
     const u1 = { id: 1 }
     const u2 = { id: 2 }
     const u3 = { id: 3 }
-    const mapU = Map([u1, u2, u3].map(u => ([u.id, u])))
+    const mapU = Map<number, U>([u1, u2, u3].map(u => ([u.id, u])))
 
-    const getLU = leftJoin(
+    const getLU = leftJoin<number, L, number, U, { l: L, u: U }>(
       l => Set([l.uId]),
       (l, us) => ({ l, u: us.get(l.uId) })
     )

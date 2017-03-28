@@ -1,9 +1,10 @@
 import { inspect } from 'util'
 
-import { Record, Set, Map } from 'immutable'
+import { Record, Set, Map, ShapedMap } from 'immutable'
 
 import { semiPureFunction, unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
 
+interface Post { id: string }
 const posts = Set([
   {id: 'pA'},
   {id: 'pB'},
@@ -12,6 +13,7 @@ const posts = Set([
 ])
 const postsById = Map(posts.map(post => ([post.id, post])))
 
+interface Like { id: string, postId: string, userId: string }
 const likes = Set([
   {id: 'lA', postId: 'pA', userId: 'uA'},
   {id: 'lB', postId: 'pB', userId: 'uB'},
@@ -23,6 +25,7 @@ const likesById = Map(likes.map(like => ([like.id, like])))
 const likesById_plusone = likesById.set('lF', {id: 'lF', postId: 'pD', userId: 'uE'})
 const likesById_plusone_minusone = likesById_plusone.remove('lE')
 
+interface User { id: string, name: string }
 const users = Set([
   {id: 'uA', name: 'A'},
   {id: 'uB', name: 'B'},
@@ -81,7 +84,8 @@ const getLikesByPostId = (likesById) => {
   return groupLikesByPostId(likesById)
 }
 
-const attachLikingUser = leftJoin(
+interface LikeUser { likeId: string, postId: string, userId: string, userName: string }
+const attachLikingUser = leftJoin<string, Like, string, User, LikeUser>(
   like => Set([like.userId]),
   (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
 )
@@ -150,6 +154,7 @@ nD --- nC
 
 // TODO: Make the records diffable too
 //const Node = Record({ id: '' })
+type Node = ShapedMap<{ id: string }>
 const Node = (data) => Map(data)
 
 const nodes = Set([
@@ -161,6 +166,7 @@ const nodes = Set([
 const nodesById = Map(nodes.map(node => ([node.get('id'), node])))
 
 //const Edge = Record({ id: '', source: '', target: '' })
+type Edge = ShapedMap<{ id: string, source: string, target: string }>
 const Edge = (data) => Map(data)
 
 const edges = Set([
@@ -171,10 +177,11 @@ const edges = Set([
 ])
 const edgesById = Map(edges.map(edge => ([edge.get('id'), edge])))
 
-const attachSourceAndTarget = leftJoin(
+type EdgeWithNodes = ShapedMap<{ id: string, source: string, sourceNode: Node, target: string, targetNode: Node }>
+const attachSourceAndTarget = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('source'), edge.get('target')]),
   (edge, nodes) => {
-    return edge
+    return (edge as EdgeWithNodes)
       .set('sourceNode', nodes.get(edge.get('source')))
       .set('targetNode', nodes.get(edge.get('target')))
   }
@@ -196,9 +203,9 @@ console.log(inspect(
 , {depth: 3}))
 
 
-const attachTargetNode = leftJoin(
+const attachTargetNode = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('target')]),
-  (edge, nodes) => edge.set('targetNode', nodes.get(edge.get('target')))
+  (edge, nodes) => (edge as EdgeWithNodes).set('targetNode', nodes.get(edge.get('target')))
 )
 const isSource = (value, key) => key === 'source'
 const groupBySource = group(filter(isSource))
@@ -211,9 +218,9 @@ const getOutNeighboursByNodeId = (edgesById, nodesById) => {
   return simplify_1(convertToSet_1(leaveTargetNode(edgesBySourceAndTarget)))
 }
 
-const attachSourceNode = leftJoin(
+const attachSourceNode = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('source')]),
-  (edge, nodes) => edge.set('sourceNode', nodes.get(edge.get('source')))
+  (edge, nodes) => (edge as EdgeWithNodes).set('sourceNode', nodes.get(edge.get('source')))
 )
 const isTarget = (value, key) => key === 'target'
 const groupByTarget = group(filter(isTarget))
@@ -232,7 +239,7 @@ const combineNeighbours = semiPureFunction({
     unionInAndOutNeighbours: unionSet(),
     emptySet: Set(),
   }),
-  executeFunction: ({ unionInAndOutNeighbours, emptySet }, inNeighbours, outNeighbours) => {
+  executeFunction: ({ unionInAndOutNeighbours, emptySet }, inNeighbours: any, outNeighbours: any) => {
     return unionInAndOutNeighbours(inNeighbours || emptySet, outNeighbours || emptySet)
   }
 })
@@ -272,12 +279,12 @@ const _getLikesByPostId = semiPureFunction({
 
 const _getLikeUsers = semiPureFunction({
   createMemory: () => ({
-    attachLikingUser: leftJoin(
+    attachLikingUser: leftJoin<string, Like, string, User, LikeUser>(
       like => Set([like.userId]),
       (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
     )
   }),
-  executeFunction: ({ attachLikingUser }, likesById, usersById) => {
+  executeFunction: ({ attachLikingUser }, likesById: any, usersById: any) => {
     return attachLikingUser(likesById, usersById)
   }
 })
@@ -298,7 +305,7 @@ const _getLikeUsersByPostIdFromScope = semiPureFunction({
   createMemory: () => ({
     getLikeUsersByPostId: _getLikeUsersByPostId.specialize()
   }),
-  executeFunction: ({getLikeUsersByPostId}, {likesById, usersById}) => {
+  executeFunction: ({getLikeUsersByPostId}, {likesById, usersById} : { likesById: Map<string, Like>, usersById: Map<string, User> }) => {
     return getLikeUsersByPostId(likesById, usersById)
   }
 })

@@ -5,7 +5,7 @@ const emptySet = Set()
 export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={}) => {
   return semiPureFunction({
     createMemory: () => ({
-      recentArgumentsValues: [],
+      recentArgumentsValues: [] as { value: any, arguments: any }[],
       executeFunction: executeFunction.specialize ? executeFunction.specialize() : executeFunction
     }),
     executeFunction: ({ recentArgumentsValues, executeFunction }, ...args) => {
@@ -31,7 +31,17 @@ export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={
   })
 }
 
-export const semiPureFunction = ({ createMemory, executeFunction }) => {
+interface SemiPureConfiguration<M, A, R> {
+  createMemory: () => M,
+  executeFunction: (memory: M, ...args: A[]) => R,
+}
+interface SemiPureOperation<M, A, R> {
+  (...args: A[]): R,
+  specialize: () => SemiPureOperation<M, A, R>
+}
+export function semiPureFunction<M, A, R>(
+  { createMemory, executeFunction } : SemiPureConfiguration<M, A, R>
+) : SemiPureOperation<M, A, R> {
   const pipeline = createMemory()
 
   const apply: any = (...args) => {
@@ -39,7 +49,7 @@ export const semiPureFunction = ({ createMemory, executeFunction }) => {
   }
 
   const specialize = () => {
-    return semiPureFunction({ createMemory, executeFunction })
+    return semiPureFunction<M, A, R>({ createMemory, executeFunction })
   }
   apply.specialize = specialize
 
@@ -57,7 +67,10 @@ export const composeFunctions = (...functions) => {
   })
 }
 
-export const unionSet = () => {
+interface UnionSetOperation<E> {
+  (leftSet: Set<E>, rightSet: Set<E>) : Set<E>,
+}
+export function unionSet<E>() : UnionSetOperation<E> {
   let currentValue = Set<any>()
   let currentLeftArgument = Set<any>()
   let currentRightArgument = Set<any>()
@@ -103,7 +116,10 @@ export const unionSet = () => {
   return apply
 }
 
-export const unionMap = () => {
+interface UnionMapOperation<K, V> {
+  (leftMap: Map<K, V>, rightMap: Map<K, V>) : Map<K, V>,
+}
+export function unionMap<K, V>() : UnionMapOperation<K,V> {
   let currentValue = Map<any,any>()
   let currentLeftArgument = Map()
   let currentRightArgument = Map()
@@ -163,11 +179,14 @@ export const unionMap = () => {
   return apply
 }
 
-export const zip = (attach) => {
-  if(attach === undefined) {
-    attach = (leftElement, rightElement) => ({ leftElement, rightElement })
-  }
-
+interface ZipAttach<K, LV, RV, UV> {
+  (leftValue: LV | undefined, rightValue: LV | undefined): UV,
+  specialize? : any
+}
+interface ZipOperation<K, LV, RV, UV> {
+  (leftMap: Map<K, LV>, rightMap: Map<K, RV>): Map<K, UV>
+}
+export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperation<K, LV, RV, UV> {
   let currentValue = Map<any,any>()
   let currentLeftArgument = Map<any,any>()
   let currentRightArgument = Map<any,any>()
@@ -240,11 +259,22 @@ export const zip = (attach) => {
   return apply
 }
 
-export const leftJoin = (mapLeftToSetOfRightKeys, attachLeftWithMapOfRight) => {
-  if(attachLeftWithMapOfRight === undefined) {
-    attachLeftWithMapOfRight = (value, rightElements) => ({ value, group: rightElements })
-  }
-
+interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
+  (leftValue: VL, leftKey: KL): Set<KR>,
+  specialize? : () => any
+}
+interface LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO> {
+  (leftValue: VL, mapOfRightValues: Map<KR, VR>): VO,
+  specialize? : () => any
+}
+interface LeftJoinOperation<KL, VL, KR, VR, VO> {
+  (leftMap: Map<KL, VL>, rightMap: Map<KR, VR>) : Map<KL, VO>,
+  specialize: () => LeftJoinOperation<KL, VL, KR, VR, VO>
+}
+export function leftJoin<KL, VL, KR, VR, VO> (
+  mapLeftToSetOfRightKeys: LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>,
+  attachLeftWithMapOfRight: LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO>
+): LeftJoinOperation<KL, VL, KR, VR, VO> {
   let currentValue = Map<any,any>()
   let currentLeftArgument = Map()
   let currentRightArgument = Map()
@@ -297,7 +327,7 @@ export const leftJoin = (mapLeftToSetOfRightKeys, attachLeftWithMapOfRight) => {
       newValue = newValue.remove(leftKey)
     })
     leftArgumentDiff.added.forEach((value, key) => {
-      const fnInstance = mapLeftToSetOfRightKeys.specialize 
+      const fnInstance = mapLeftToSetOfRightKeys.specialize
         ? mapLeftToSetOfRightKeys.specialize() 
         : mapLeftToSetOfRightKeys
       const attachInstance = attachLeftWithMapOfRight.specialize ? attachLeftWithMapOfRight.specialize() : attachLeftWithMapOfRight
