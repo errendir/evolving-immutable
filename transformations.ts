@@ -68,7 +68,8 @@ export const composeFunctions = (...functions) => {
 }
 
 interface UnionSetOperation<E> {
-  (leftSet: Set<E>, rightSet: Set<E>) : Set<E>,
+  (leftSet: Set<E>, rightSet: Set<E>): Set<E>,
+  specialize: () => UnionSetOperation<E>
 }
 export function unionSet<E>() : UnionSetOperation<E> {
   let currentValue = Set<any>()
@@ -117,7 +118,8 @@ export function unionSet<E>() : UnionSetOperation<E> {
 }
 
 interface UnionMapOperation<K, V> {
-  (leftMap: Map<K, V>, rightMap: Map<K, V>) : Map<K, V>,
+  (leftMap: Map<K, V>, rightMap: Map<K, V>): Map<K, V>,
+  specialize: () => UnionMapOperation<K, V>
 }
 export function unionMap<K, V>() : UnionMapOperation<K,V> {
   let currentValue = Map<any,any>()
@@ -184,7 +186,8 @@ interface ZipAttach<K, LV, RV, UV> {
   specialize? : any
 }
 interface ZipOperation<K, LV, RV, UV> {
-  (leftMap: Map<K, LV>, rightMap: Map<K, RV>): Map<K, UV>
+  (leftMap: Map<K, LV>, rightMap: Map<K, RV>): Map<K, UV>,
+  specialize: () => ZipOperation<K, LV, RV, UV>
 }
 export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperation<K, LV, RV, UV> {
   let currentValue = Map<any,any>()
@@ -261,11 +264,11 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
 
 interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
   (leftValue: VL, leftKey: KL): Set<KR>,
-  specialize? : () => any
+  specialize?: () => LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>
 }
 interface LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO> {
   (leftValue: VL, mapOfRightValues: Map<KR, VR>): VO,
-  specialize? : () => any
+  specialize?: () => LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO>
 }
 interface LeftJoinOperation<KL, VL, KR, VR, VO> {
   (leftMap: Map<KL, VL>, rightMap: Map<KR, VR>) : Map<KL, VO>,
@@ -333,7 +336,7 @@ export function leftJoin<KL, VL, KR, VR, VO> (
       const attachInstance = attachLeftWithMapOfRight.specialize ? attachLeftWithMapOfRight.specialize() : attachLeftWithMapOfRight
       const rightKeys = fnInstance(value, key)
       // TODO: Diff-mem the following map! Also make sure undefined doesn't land there
-      const mapOfRight = rightKeys.toMap().map(rightKey => newRightArgument.get(rightKey))
+      const mapOfRight = rightKeys.toMap().map(rightKey => newRightArgument.get(rightKey)) as Map<KR, VR>
       rightKeys.forEach(rightKey => {
         rightKeyToLeftKeys = rightKeyToLeftKeys.update(rightKey, leftKeys => (leftKeys || Set()).add(key))
       })
@@ -376,7 +379,15 @@ export function leftJoin<KL, VL, KR, VR, VO> (
   return apply
 }
 
-export const group = (fn) => {
+interface GroupKeyFunction<K, V, GK> {
+  (value: V, key: K): Iterable<GK, GK> | GK,
+  specialize?: () => GroupKeyFunction<K, V, GK>
+}
+interface GroupOperation<K, V, GK> {
+  (map: Map<K, V>): Map<GK, Map<K, V>>,
+  specialize: () => GroupOperation<K, V, GK>
+}
+export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<K, V, GK> {
   let currentFnInstances = Map<any, any>().asMutable()
   let currentValue = Map<any,any>().asMutable()
   let currentArgument = Map()
@@ -454,7 +465,15 @@ export const map = (fn, { overSet=false } = {}) => {
   return overSet ? mapOverSet(fn) : mapOverMap(fn)
 }
 
-const mapOverMap = (fn) => {
+interface MapOverMapMapper<K, VA, VB> {
+  (value: VA, key: K): VB,
+  specialize?: () => MapOverMapMapper<K, VA, VB>
+}
+interface MapOverMapOperation<K, VA, VB> {
+  (map: Map<K, VA>): Map<K, VB>,
+  specialize: () => MapOverMapOperation<K, VA, VB>
+}
+function mapOverMap<K, VA, VB>(fn: MapOverMapMapper<K, VA, VB>) : MapOverMapOperation<K, VA, VB> {
   let currentFnInstances = Map<any, any>()
   let currentValue = Map()
   let currentArgument = Map()
@@ -470,11 +489,11 @@ const mapOverMap = (fn) => {
     argumentDiff.added.forEach((value, key) => {
       const mapper = fn.specialize ? fn.specialize() : fn
       currentFnInstances = currentFnInstances.set(key, mapper)
-      newValue = newValue.set(key, mapper(value))
+      newValue = newValue.set(key, mapper(value, key))
     })
     argumentDiff.updated.forEach(({prev, next}, key) => {
       const mapper = currentFnInstances.get(key)
-      newValue = newValue.set(key, mapper(next))
+      newValue = newValue.set(key, mapper(next, key))
     })
     currentValue = newValue
     return newValue

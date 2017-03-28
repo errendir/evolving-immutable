@@ -79,7 +79,7 @@ const diffMemGetLikesByPostId = (() => {
   }
 })()
 
-const groupLikesByPostId = group(like => like.postId)
+const groupLikesByPostId = group<string, Like, string>(like => like.postId)
 const getLikesByPostId = (likesById) => {
   return groupLikesByPostId(likesById)
 }
@@ -93,7 +93,7 @@ const getLikeUsers = (likesById, usersById) => {
   return attachLikingUser(likesById, usersById)
 }
 
-const groupLikeUsersByPostId = group(likeUser => likeUser.postId)
+const groupLikeUsersByPostId = group<string, LikeUser, string>(likeUser => likeUser.postId)
 const mapLikeUsersByPostIdToSet = map(toSet())
 const getLikeUsersByPostId = (likesById, usersById) => {
   const likeUsersByLikeId = getLikeUsers(likesById, usersById)
@@ -270,9 +270,9 @@ console.log(
 // Pipeline example - all functions are specializable
 const _getLikesByPostId = semiPureFunction({
   createMemory: () => ({
-    groupLikesByPostId: group(like => like.postId)
+    groupLikesByPostId: group<string, Like, string>(like => like.postId)
   }),
-  executeFunction: ({ groupLikesByPostId }, likesById) => {
+  executeFunction: ({ groupLikesByPostId }, likesById: Map<string, Like>) => {
     return groupLikesByPostId(likesById)
   }
 })
@@ -292,7 +292,7 @@ const _getLikeUsers = semiPureFunction({
 const _getLikeUsersByPostId = semiPureFunction({
   createMemory: () => ({
     getLikeUsers: _getLikeUsers.specialize(),
-    groupLikeUsersByPostId: group(likeUser => likeUser.postId),
+    groupLikeUsersByPostId: group<string, LikeUser, string>(likeUser => likeUser.postId),
     mapLikeUsersByPostIdToSet: map(toSet()),
   }),
   executeFunction: ({ getLikeUsers, groupLikeUsersByPostId, mapLikeUsersByPostIdToSet }, likesById, usersById) => {
