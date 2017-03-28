@@ -275,7 +275,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
 }
 
 interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
-  (leftValue: VL, leftKey: KL): Set<KR>,
+  (leftValue: VL, leftKey?: KL): Set<KR>,
   specialize?: () => LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>
 }
 interface LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO> {
