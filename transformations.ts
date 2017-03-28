@@ -1,4 +1,4 @@
-import { Set, Map, Iterable, List, Record } from 'immutable'
+import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 const emptySet = Set()
 
@@ -63,6 +63,18 @@ export const composeFunctions = (...functions) => {
     }),
     executeFunction: ({ functionInstances }, argument) => {
       return functionInstances.reduce((result, functionInstance) => functionInstance(result), argument)
+    }
+  })
+}
+
+export function safeUnionSet<E>() {
+  return semiPureFunction({
+    createMemory: () => ({
+      union: unionSet<E>(),
+      emptySet: Set<E>(),
+    }),
+    executeFunction: ({ union, emptySet }, leftSet: Set<E>, rightSet: Set<E>) => {
+      return union(leftSet || emptySet, rightSet || emptySet)
     }
   })
 }
