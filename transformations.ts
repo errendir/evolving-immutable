@@ -57,19 +57,44 @@ export const composeFunctions = (...functions) => {
   })
 }
 
-// TODO: Optimize this (don't use unionMap - write one generic union)
 export const unionSet = () => {
-  const convertLeftToMap = toMap(element => element)
-  const convertRightToMap = toMap(element => element)
-  const leftRightUnionMap = unionMap()
-  const convertUnionToSet = toSet()
+  let currentValue = Set<any>()
+  let currentLeftArgument = Set<any>()
+  let currentRightArgument = Set<any>()
 
   const apply: any = (newLeftArgument, newRightArgument) => {
-    const leftMap = convertLeftToMap(newLeftArgument)
-    const rightMap = convertRightToMap(newRightArgument)
-    return convertUnionToSet(leftRightUnionMap(leftMap, rightMap))
-  }
+    const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
+    const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
 
+    let newValue = currentValue
+    leftArgumentDiff.removed.forEach(leftValue => {
+      if(!currentRightArgument.has(leftValue)) {
+        newValue = newValue.remove(leftValue)
+      }
+    })
+    leftArgumentDiff.added.forEach(leftValue => {
+      if(!currentRightArgument.has(leftValue)) {
+        newValue = newValue.add(leftValue)
+      }
+    })
+
+    rightArgumentDiff.removed.forEach(rightValue => {
+      if(!newLeftArgument.has(rightValue)) {
+        newValue = newValue.remove(rightValue)
+      }
+    })
+    rightArgumentDiff.added.forEach(rightValue => {
+      if(!newLeftArgument.has(rightValue)) {
+        newValue = newValue.add(rightValue)
+      }
+    })
+
+    currentValue = newValue
+    currentLeftArgument = newLeftArgument
+    currentRightArgument = newRightArgument
+
+    return newValue
+  }
   const specialize = () => {
     return unionSet()
   }

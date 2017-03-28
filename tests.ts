@@ -320,3 +320,58 @@ describe('toMap', () => {
     console.assert(result.get(3) === o3)
   })
 })
+
+describe('unionSet', () => {
+  it('produces a set with all the elements of two argument sets', () => {
+    const set1 = Set([1,2,3,4])
+    const set2 = Set([3,4,5,6])
+
+    const union = unionSet()
+
+    const setU = union(set1, set2)
+
+    console.assert(setU.equals(Set([1,2,3,4,5,6])))
+  })
+
+  it('does not lose an element until it is gone from both argument sets', () => {
+    const set1_1 = Set([1,2,3,4])
+    const set1_2 = set1_1.remove(3)
+    const set1_3 = set1_2.remove(4)
+    const set1_4 = set1_3.remove(1)
+    const set2_1 = Set([3,4,5,6])
+    const set2_2 = set2_1.remove(4)
+    const set2_3 = set2_2.remove(3)
+    const set2_4 = set2_3.remove(1)
+
+    const union = unionSet()
+
+    const set11 = union(set1_1, set2_1)
+    const set21 = union(set1_2, set2_1)
+    const set22 = union(set1_2, set2_2)
+    const set32 = union(set1_3, set2_2)
+    const set33 = union(set1_3, set2_3)
+    const set44 = union(set1_4, set2_4)
+
+    console.assert(set11.equals(Set([1,2,3,4,5,6])))
+    console.assert(set21.equals(Set([1,2,3,4,5,6])))
+    console.assert(set22.equals(Set([1,2,3,4,5,6])))
+    console.assert(set32.equals(Set([1,2,3,5,6])))
+    console.assert(set33.equals(Set([1,2,5,6])))
+    console.assert(set44.equals(Set([2,5,6])))
+  })
+
+  it('preserves an element removed from one argument set but added to another', () => {
+    const set1_1 = Set([1,2,3,4,5])
+    const set1_2 = set1_1.remove(5)
+    const set2_1 = Set([1,2,3,4])
+    const set2_2 = set2_1.add(5)
+
+    const union = unionSet()
+
+    const set11 = union(set1_1, set2_1)
+    const set22 = union(set1_2, set2_2)
+    
+    console.assert(set11.equals(Set([1,2,3,4,5])))
+    console.assert(set22.equals(Set([1,2,3,4,5])))
+  })
+})
