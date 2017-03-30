@@ -4,6 +4,7 @@ import * as EvolvingImmutable from './transformations'
 import * as NaiveImmutable from './naiveTransformations'
 
 console.log('Comparing perf of group')
+interface Like { id: number, userId: number, dataPiece1: number }
 const generateLike = () => ({ 
   id: Math.floor(Math.random()*1000000),
   userId: Math.floor(Math.random()*100),
@@ -35,11 +36,10 @@ const perturbLikes = (likesById) => {
   const decision = [removeRandom, addRandom, updateRandom][Math.floor(Math.random()*3)]
   return decision(likesById)
 }
+const debounce = (likesById) => Map(likesById.entrySeq().toJS())
 
-let likesById
-
-const testContinuousModifications = (updateFn, noMods, sequenceLength=1000) => {
-  console.log(`Sequence of ${sequenceLength} continuous objects - ${noMods} at a time`)
+const testContinuousModifications = (description, updateFn, noMods, sequenceLength=1000) => {
+  console.log(`Sequence of ${sequenceLength} continuous objects - ${noMods} ${description} at a time`)
   console.time('sequence generation')
   const sequence = [generateLikes()]
   for(let i=0; i<sequenceLength-1; ++i) {
@@ -60,22 +60,25 @@ const testContinuousModifications = (updateFn, noMods, sequenceLength=1000) => {
     console.timeEnd(`${name} run`)
   }
 
-  const groupByUser_ev = EvolvingImmutable.group(like => like.userId)
+  const groupByUser_ev = EvolvingImmutable.group<number, Like, number>(like => like.userId)
   performARun('evolving', groupByUser_ev)
 
   const groupByUser_na = NaiveImmutable.group(like => like.userId)
   performARun('naive', groupByUser_na)
 }
 
-testContinuousModifications(perturbLikes, 1)
-testContinuousModifications(perturbLikes, 5)
-testContinuousModifications(perturbLikes, 50)
+testContinuousModifications('perturbLikes', perturbLikes, 5)
+testContinuousModifications('perturbLikes', perturbLikes, 50)
 
-testContinuousModifications(updateRandom, 5)
-testContinuousModifications(updateRandom, 50)
-testContinuousModifications(updateRandom, 500)
-testContinuousModifications(updateRandom, 5000)
+testContinuousModifications('updateRandom', updateRandom, 5)
+testContinuousModifications('updateRandom', updateRandom, 50)
+//testContinuousModifications('updateRandom', updateRandom, 500)
+//testContinuousModifications('updateRandom', updateRandom, 5000)
 
+testContinuousModifications('debounce', debounce, 1, 300)
+
+process.exit(0)
+let likesById
 console.log('Discontinuous')
 console.time('dry run')
 for(let i=0; i<100; ++i) {
@@ -84,7 +87,7 @@ for(let i=0; i<100; ++i) {
 console.timeEnd('dry run')
 
 console.time('evolving run')
-const groupByUser_ev2 = EvolvingImmutable.group(like => like.userId)
+const groupByUser_ev2 = EvolvingImmutable.group<number, Like, number>(like => like.userId)
 for(let i=0; i<100; ++i) {
   likesById = generateLikes()
   groupByUser_ev2(likesById)
