@@ -1,11 +1,35 @@
 import { Set, Map } from 'immutable'
 
 import {
-  memoizeForRecentArguments,
+  memoizeForSlots, memoizeForRecentArguments,
   semiPureFunction, composeFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from './transformations'
+
+describe('memoizeForSlots', () => {
+  it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {
+    const getTransformedObject = memoizeForSlots({ 
+      computeSlot: (allObjects, objectId) => objectId,
+      executeFunction: composeFunctions(
+        (allObjects, objectId) => allObjects.get(objectId),
+        memoizeForRecentArguments(object => Math.random(), { historyLength: 1 })
+      )
+    })
+
+    const data = Map({ 'a': Map({ prop1: 1 }), 'b': Map({ prop1: 2 }) })
+
+    const transformedA1 = getTransformedObject(data, 'a')
+    const transformedA2 = getTransformedObject(data, 'a')
+    const transformedB1 = getTransformedObject(data, 'b')
+    const transformedA3 = getTransformedObject(data, 'a')
+    const transformedB2 = getTransformedObject(data, 'b')
+    console.assert(transformedA1 === transformedA2)
+    console.assert(transformedA2 === transformedA3)
+    console.assert(transformedB1 === transformedB2)
+  })
+})
+
 
 describe('memoizeForRecentArguments', () => {
   it('produces a function that returns cached value if called with the arguments it has recently been called with', () => {
@@ -25,6 +49,36 @@ describe('memoizeForRecentArguments', () => {
     console.assert(hash1_1 === hash1_2)
     console.assert(hash2_1 === hash2_2)
   })
+
+  it('produces a function that reruns the provided function if it is called with an argument seen too many calls before', () => {
+    const objHash = memoizeForRecentArguments(Math.random, { historyLength: 2 })
+
+    const obj1 = {}
+    const obj2 = {}
+    const obj3 = {}
+    
+    const hash1_1 = objHash(obj1)
+    const hash2 = objHash(obj2)
+    const hash3 = objHash(obj3)
+    const hash1_2 = objHash(obj1)
+    console.assert(hash1_1 !== hash1_2)
+  })
+
+  it('produces a function that does not move the argument to the most recent history', () => {
+    const objHash = memoizeForRecentArguments(Math.random, { historyLength: 2 })
+
+    const obj1 = {}
+    const obj2 = {}
+    const obj3 = {}
+    
+    const hash1_1 = objHash(obj1)
+    const hash2 = objHash(obj2)
+    const hash1_2 = objHash(obj1)
+    const hash3 = objHash(obj3)
+    const hash1_3 = objHash(obj1)
+    console.assert(hash1_1 === hash1_2)
+    console.assert(hash1_1 !== hash1_3)
+  })
 })
 
 describe('composeFunctions', () => {
@@ -43,6 +97,17 @@ describe('composeFunctions', () => {
     console.assert(result1.get('a') === result2.get('a'))
     console.assert(result1.get('b') === result2.get('b'))
     console.assert(result1.get('one-more-thing') !== result2.get('one-more-thing'))
+  })
+
+  it('allows multiple arguments to be passed into the first composed function', () => {
+    const operation = composeFunctions(
+      (allObjectsById, objectId) => allObjectsById.get(objectId),
+      (object) => object
+    )
+
+    const allObjectsById = Map({ 'a': { prop1: 11 }})
+    
+    console.assert(operation(allObjectsById, 'a') === allObjectsById.get('a'))
   })
 })
 

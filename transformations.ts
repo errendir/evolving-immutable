@@ -2,6 +2,24 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 const emptySet = Set()
 
+export const memoizeForSlots = ({ computeSlot, executeFunction }) => {
+  return semiPureFunction({
+    createMemory: () => ({
+      computeSlotInstance: computeSlot.specialize ? computeSlot.specialize() : computeSlot,
+      functionInstanceBySlot: Map<any,any>().asMutable(),
+    }),
+    executeFunction: ({ computeSlotInstance, functionInstanceBySlot }, ...args) => {
+      const slot = computeSlotInstance(...args)
+      let functionInstance = functionInstanceBySlot.get(slot)
+      if(!functionInstance) {
+        functionInstance = executeFunction.specialize ? executeFunction.specialize() : executeFunction
+        functionInstanceBySlot.set(slot, functionInstance)
+      }
+      return functionInstance(...args)
+    }
+  })
+}
+
 export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={}) => {
   return semiPureFunction({
     createMemory: () => ({
@@ -61,8 +79,11 @@ export const composeFunctions = (...functions) => {
     createMemory: () => ({
       functionInstances: functions.map(fn => fn.specialize ? fn.specialize() : fn)
     }),
-    executeFunction: ({ functionInstances }, argument) => {
-      return functionInstances.reduce((result, functionInstance) => functionInstance(result), argument)
+    executeFunction: ({ functionInstances: [firstFunctionInstance, ...restOfFunctionInstances] }, ...args) => {
+      return restOfFunctionInstances.reduce(
+        (result, functionInstance) => functionInstance(result),
+        firstFunctionInstance(...args)
+      )
     }
   })
 }
