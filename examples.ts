@@ -2,7 +2,10 @@ import { inspect } from 'util'
 
 import { Record, Set, Map, ShapedMap } from 'immutable'
 
-import { semiPureFunction, unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap } from './transformations'
+import { 
+  executeOneOnMany, semiPureFunction, composeFunctions,
+  unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
+} from './transformations'
 
 interface Post { id: string }
 const posts = Set([
@@ -268,47 +271,25 @@ console.log(
 )
 
 // Pipeline example - all functions are specializable
-const _getLikesByPostId = semiPureFunction({
-  createMemory: () => ({
-    groupLikesByPostId: group<string, Like, string>(like => like.postId)
-  }),
-  executeFunction: ({ groupLikesByPostId }, likesById: Map<string, Like>) => {
-    return groupLikesByPostId(likesById)
-  }
-})
+const _getLikesByPostId = group<string, Like, string>(like => like.postId)
 
-const _getLikeUsers = semiPureFunction({
-  createMemory: () => ({
-    attachLikingUser: leftJoin<string, Like, string, User, LikeUser>(
-      like => Set([like.userId]),
-      (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
-    )
-  }),
-  executeFunction: ({ attachLikingUser }, likesById: any, usersById: any) => {
-    return attachLikingUser(likesById, usersById)
-  }
-})
+const _getLikeUsers =
+  leftJoin<string, Like, string, User, LikeUser>(
+    like => Set([like.userId]),
+    (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
+  )
 
-const _getLikeUsersByPostId = semiPureFunction({
-  createMemory: () => ({
-    getLikeUsers: _getLikeUsers.specialize(),
-    groupLikeUsersByPostId: group<string, LikeUser, string>(likeUser => likeUser.postId),
-    mapLikeUsersByPostIdToSet: map(toSet()),
-  }),
-  executeFunction: ({ getLikeUsers, groupLikeUsersByPostId, mapLikeUsersByPostIdToSet }, likesById, usersById) => {
-    const likeUsersByLikeId = getLikeUsers(likesById, usersById)
-    return mapLikeUsersByPostIdToSet(groupLikeUsersByPostId(likeUsersByLikeId))
-  }
-})
+const _getLikeUsersByPostId = composeFunctions(
+  _getLikeUsers,
+  group<string, LikeUser, string>(likeUser => likeUser.postId),
+  map(toSet())
+)
 
-const _getLikeUsersByPostIdFromScope = semiPureFunction({
-  createMemory: () => ({
-    getLikeUsersByPostId: _getLikeUsersByPostId.specialize()
-  }),
-  executeFunction: ({getLikeUsersByPostId}, {likesById, usersById} : { likesById: Map<string, Like>, usersById: Map<string, User> }) => {
-    return getLikeUsersByPostId(likesById, usersById)
-  }
-})
+const _getLikeUsersByPostIdFromScope = executeOneOnMany(
+  _getLikeUsersByPostId,
+  (getLikeUsersByPostId, {likesById, usersById} : { likesById: Map<string, Like>, usersById: Map<string, User> }) => 
+    getLikeUsersByPostId(likesById, usersById)
+)
 
 const mapScopesToLikeUsersByPostId = map(_getLikeUsersByPostIdFromScope)
 const scopesOfUsersAndLikes = Map({

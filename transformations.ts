@@ -2,6 +2,35 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 const emptySet = Set()
 
+const objectMap = (object, fn) => {
+  const mappedObject = {}
+  Object.keys(object).forEach(key => mappedObject[key] = fn(object[key], key))
+  return mappedObject
+}
+
+export const executeManyOnOne = (functionsByName) => {
+  return semiPureFunction({
+    createMemory: () => ({
+      functionInstancesByName: objectMap(functionsByName, fn => fn.specialize ? fn.specialize() : fn)
+    }),
+    executeFunction: ({ functionInstancesByName }, ...args) => {
+      return objectMap(functionInstancesByName, (functionInstance) => functionInstance(...args))
+    }
+  })
+}
+
+export const executeOneOnMany = (fn, caller) => {
+  return semiPureFunction({
+    createMemory: () => ({
+      fnInstance: fn.specialize ? fn.specialize() : fn,
+      callerInstance: caller.specialize ? caller.specialize() : caller,
+    }),
+    executeFunction: ({ fnInstance, callerInstance }, ...args) => {
+      return callerInstance(fnInstance, ...args)
+    }
+  })
+}
+
 export const memoizeForSlots = ({ computeSlot, executeFunction }) => {
   return semiPureFunction({
     createMemory: () => ({
