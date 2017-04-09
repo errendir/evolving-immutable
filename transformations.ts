@@ -266,11 +266,11 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
 
     rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
       const attachInstance = newAttachInstances.get(rightKey)
-      newAttachInstances = newAttachInstances.remove(rightKey)
       const leftValue = currentLeftArgument.get(rightKey)
       if(leftValue !== undefined) {
         newValue = newValue.set(rightKey, attachInstance(leftValue, undefined))
       } else {
+        newAttachInstances = newAttachInstances.remove(rightKey)
         newValue = newValue.remove(rightKey)
       }
     })
@@ -288,11 +288,11 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
 
     leftArgumentDiff.removed.forEach((leftValue, leftKey) => {
       const attachInstance = newAttachInstances.get(leftKey)
-      newAttachInstances = newAttachInstances.remove(leftKey)
       const rightValue = newRightArgument.get(leftKey)
       if(rightValue !== undefined) {
         newValue = newValue.set(leftKey, attachInstance(undefined, rightValue))
       } else {
+        newAttachInstances = newAttachInstances.remove(leftKey)
         newValue = newValue.remove(leftKey)
       }
     })

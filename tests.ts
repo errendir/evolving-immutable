@@ -239,6 +239,28 @@ describe('zip', () => {
     console.assert(outputMap4.keySeq().toSet().equals(Set(['b', 'c'])))
     console.assert(outputMap5.keySeq().toSet().equals(Set(['b'])))
   })
+
+  it('correctly processes the update of the entry in one map regardless of removal of the same key from the other map', () => {
+    const map1 = Map<any,any>({ a: { a: 1 }, b: { a: 2 }, c: { c: 3 } })
+    const map1_a = map1.set('a', { aa: 1 })
+    const map1_b = map1.remove('a')
+    const map2 = Map<any,any>({ a: { b: 1 }, b: { b: 2 }, c: { c: 3 } })
+    const map2_a = map2.remove('a')
+    const map2_b = map2.set('a', { aa: 1 })
+
+    const zipTwoObjects1 = zip((left, right) => ({ left, right }))
+    const zipTwoObjects2 = zip((left, right) => ({ left, right }))
+
+    const outputMap1 = zipTwoObjects1(map1, map2)
+    const outputMap2 = zipTwoObjects1(map1_a, map2_a)
+    const outputMap3 = zipTwoObjects2(map1, map2)
+    const outputMap4 = zipTwoObjects2(map1_b, map2_b)
+
+    console.assert(outputMap2.get("a").left === map1_a.get("a"))
+    console.assert(outputMap2.get("a").right === map2_a.get("a"))
+    console.assert(outputMap4.get("a").left === map1_b.get("a"))
+    console.assert(outputMap4.get("a").right === map2_b.get("a"))
+  })
 })
 
 describe('group', () => {
