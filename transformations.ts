@@ -265,9 +265,9 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
     let newValue = currentValue
 
     rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
-      const attachInstance = newAttachInstances.get(rightKey)
       const leftValue = currentLeftArgument.get(rightKey)
       if(leftValue !== undefined) {
+        const attachInstance = newAttachInstances.get(rightKey)
         newValue = newValue.set(rightKey, attachInstance(leftValue, undefined))
       } else {
         newAttachInstances = newAttachInstances.remove(rightKey)
@@ -275,7 +275,8 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
       }
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
-      const attachInstance = attach.specialize ? attach.specialize() : attach
+      const attachInstance = newAttachInstances.get(rightKey) || 
+        (attach.specialize ? attach.specialize() : attach)
       newAttachInstances = newAttachInstances.set(rightKey, attachInstance)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
@@ -287,9 +288,9 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
     })
 
     leftArgumentDiff.removed.forEach((leftValue, leftKey) => {
-      const attachInstance = newAttachInstances.get(leftKey)
       const rightValue = newRightArgument.get(leftKey)
       if(rightValue !== undefined) {
+        const attachInstance = newAttachInstances.get(leftKey)
         newValue = newValue.set(leftKey, attachInstance(undefined, rightValue))
       } else {
         newAttachInstances = newAttachInstances.remove(leftKey)
@@ -297,7 +298,8 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
       }
     })
     leftArgumentDiff.added.forEach((leftValue, leftKey) => {
-      const attachInstance = attach.specialize ? attach.specialize() : attach
+      const attachInstance = newAttachInstances.get(leftKey) || 
+        (attach.specialize ? attach.specialize() : attach)
       newAttachInstances = newAttachInstances.set(leftKey, attachInstance)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
