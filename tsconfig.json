@@ -6,6 +6,6 @@
     "types" : ["node", "immutable", "mocha"]
   },
   "files": [
-    "transformations.ts"
+    "src/index.ts"
   ]
 }

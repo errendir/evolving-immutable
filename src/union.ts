@@ -1,6 +1,6 @@
 import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
-import { semiPureFunction } from './transformations'
+import { semiPureFunction } from './functions'
 
 export function safeUnionSet<E>() {
   return semiPureFunction({

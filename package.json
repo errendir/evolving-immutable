@@ -1,8 +1,8 @@
 {
   "name": "evolving-immutable",
   "version": "0.0.1",
-  "main": "transformations.ts",
-  "typings": "transformations.ts",
+  "main": "src/index.ts",
+  "typings": "src/index.ts",
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.8",

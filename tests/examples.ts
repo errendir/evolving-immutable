@@ -5,9 +5,9 @@ import { Record, Set, Map, ShapedMap } from 'immutable'
 import { 
   executeOneOnMany, semiPureFunction, composeFunctions,
   unionMap, unionSet, safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
-} from '../src/transformations'
+} from '../src/'
 
-import * as EvImm from '../src/transformations'
+import * as EvImm from '../src/'
 
 interface Post { id: string }
 const posts = Set([

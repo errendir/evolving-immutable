@@ -1,6 +1,6 @@
 import { Map, Set } from 'immutable'
 
-import * as EvolvingImmutable from '../src/transformations'
+import * as EvolvingImmutable from '../src/'
 import * as NaiveImmutable from './naiveTransformations'
 
 console.log('Comparing perf of group')
