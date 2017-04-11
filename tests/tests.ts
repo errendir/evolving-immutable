@@ -1,11 +1,58 @@
 import { Set, Map } from 'immutable'
 
 import {
+  startChain,
   memoizeForSlots, memoizeForRecentArguments,
   semiPureFunction, composeFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
+
+describe('startChain', () => {
+  it('produces a chain that can be specialized', () => {
+    let whichNumber = 0
+    const toMemoizedUniqueNumberChain = startChain()
+      .compose(memoizeForRecentArguments(
+        () => { whichNumber += 1; return whichNumber },
+        { historyLength: 1 },
+      ))
+      .endChain()
+
+    const chain1 = toMemoizedUniqueNumberChain.specialize()
+    const chain2 = toMemoizedUniqueNumberChain.specialize()
+
+    console.assert(chain1('a') === chain1('a'))
+    console.assert(chain2('a') === chain2('a'))
+    console.assert(chain1('a') !== chain2('a'))
+  })
+
+  it('produces a chain that can be specialized over a map', () => {
+    let whichNumber = 0
+    const toMemoizedUniqueNumberChain = startChain()
+      .compose(({ id }) => id)
+      .compose(memoizeForRecentArguments(
+        () => { whichNumber += 1; return whichNumber },
+        { historyLength: 1 },
+      ))
+      .endChain()
+
+    const mapOver = map(toMemoizedUniqueNumberChain)
+    
+    const va = {}, vb = {}, vc = {}, vd = {}
+    const map1 = Map({ 'a': { id: 'a' }, 'b': { id: 'a' } })
+    const map2 = Map({ 'a': { id: 'a', s: 1 }, 'b': { id: 'a', s: 2 } })
+
+    const result1 = mapOver(map1)
+    const result2 = mapOver(map2)
+
+    console.log('result1', result1.toJS())
+    console.log('result2', result2.toJS())
+
+    // The chain is NOT shared between each key of the map - map specializes it
+    console.assert(result1.get('a') !== result1.get('b'))
+
+  })
+})
 
 describe('memoizeForSlots', () => {
   it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {

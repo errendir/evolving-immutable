@@ -12,6 +12,13 @@ function _startChain(operations) {
       firstOperation(...args)
     )
   }
+  const specialize = () => {
+    const newOperations = operations
+      .map(operation => operation.specialize ? operation.specialize() : operation)
+    return _startChain(newOperations)
+      .endChain()
+  }
+  apply.specialize = specialize
 
   const makeExtendableChain = () => {
     let wasAlreadyExtended = false
