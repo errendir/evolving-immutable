@@ -5,7 +5,7 @@ import {
   semiPureFunction, composeFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
-} from './transformations'
+} from '../src/transformations'
 
 describe('memoizeForSlots', () => {
   it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {

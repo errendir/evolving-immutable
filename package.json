@@ -9,9 +9,9 @@
     "immutable": "git+https://git@github.com/errendir/immutable-js.git#57a4fd8"
   },
   "scripts": {
-    "start": "ts-node examples.ts",
-    "test": "mocha --require ts-node/register tests.ts",
-    "perf": "ts-node performance.ts"
+    "start": "ts-node tests/examples.ts",
+    "test": "mocha --require ts-node/register tests/tests.ts",
+    "perf": "ts-node tests/performance.ts"
   },
   "devDependencies": {
     "@types/mocha": "^2.2.40",

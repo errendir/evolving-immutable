@@ -4,8 +4,10 @@ import { Record, Set, Map, ShapedMap } from 'immutable'
 
 import { 
   executeOneOnMany, semiPureFunction, composeFunctions,
-  unionMap, unionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
-} from './transformations'
+  unionMap, unionSet, safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
+} from '../src/transformations'
+
+import * as EvImm from '../src/transformations'
 
 interface Post { id: string }
 const posts = Set([
@@ -194,15 +196,15 @@ const groupBySourceAndTarget = group(filter(isSourceOrTarget))
 const leaveNodes = map(map(edgeNode => Set([edgeNode.get('sourceNode'), edgeNode.get('targetNode')])))
 const flattenTheNodes = map(flattenMap())
 const convertToSet = map(toSet())
-const _getNeighboursByNodeId = (edgesById, nodesById) => {
+const getNeighboursByNodeId_0 = (edgesById, nodesById) => {
   const edgesWithSourceAndTargetById = attachSourceAndTarget(edgesById, nodesById)
   const edgesBySourceAndTarget = groupBySourceAndTarget(edgesWithSourceAndTargetById)
   return convertToSet(flattenTheNodes(leaveNodes(edgesBySourceAndTarget)))
 }
 
-console.log('_getNeighboursByNodeId')
+console.log('getNeighboursByNodeId_0')
 console.log(inspect(
-  _getNeighboursByNodeId(edgesById, nodesById).toJS()
+  getNeighboursByNodeId_0(edgesById, nodesById).toJS()
 , {depth: 3}))
 
 
@@ -236,24 +238,52 @@ const getInNeighboursByNodeId = (edgesById, nodesById) => {
   return simplify_2(convertToSet_2(leaveSourceNode(edgesBySourceAndTarget)))
 }
 
-// We are using a specializable `combineNeighbours` as the zip attach function, so we can diff-mem each union
-const combineNeighbours = semiPureFunction({
-  createMemory: () => ({
-    unionInAndOutNeighbours: unionSet(),
-    emptySet: Set(),
-  }),
-  executeFunction: ({ unionInAndOutNeighbours, emptySet }, inNeighbours: any, outNeighbours: any) => {
-    return unionInAndOutNeighbours(inNeighbours || emptySet, outNeighbours || emptySet)
-  }
-})
 // const combineNeighbours = (inNeighbours, outNeighbours) => (inNeighbours || Set()).union(outNeighbours || Set())
-const zipNeighbours = zip(combineNeighbours)
-const getNeighboursByNodeId = (edgesById, nodesById) => {
+const zipNeighbours = zip(safeUnionSet())
+const getNeighboursByNodeId_1 = (edgesById, nodesById) => {
   const inNeighboursByNodeId = getInNeighboursByNodeId(edgesById, nodesById)
   const outNeighboursByNodeId = getOutNeighboursByNodeId(edgesById, nodesById)
   return zipNeighbours(inNeighboursByNodeId, outNeighboursByNodeId)
 }
 
+const getNeighboursByNodeId_2 = EvImm.startChain()
+  .compose(
+    leftJoin<string, Edge, string, Node, any>(
+      edge => Set([edge.get('source'), edge.get('target')]),
+      (edge, nodes) => ({ 
+        edge,
+        sourceNode: nodes.get(edge.get('source')),
+        targetNode: nodes.get(edge.get('target'))
+      })
+    )
+  )
+  .mapOneToMany({
+    sourceByTargetId: EvImm.startChain()
+      .compose(EvImm.group(({ edge }) => edge.get('target')))
+      .compose(EvImm.map(
+        EvImm.startChain()
+          .compose(EvImm.map(({ edge, sourceNode }) => sourceNode))
+          .compose(EvImm.toSet())
+          .endChain()
+      ))
+      .endChain(),
+    targetBySourceId: EvImm.startChain()
+      .compose(EvImm.group(({ edge }) => edge.get('source')))
+      .compose(EvImm.map(
+        EvImm.startChain()
+          .compose(EvImm.map(({ edge, targetNode }) => targetNode))
+          .compose(EvImm.toSet())
+          .endChain()
+      ))
+      .endChain(),
+  })
+  .mapManyToOne(
+    EvImm.zip(EvImm.safeUnionSet()),
+    ({ sourceByTargetId }) => sourceByTargetId,
+    ({ targetBySourceId }) => targetBySourceId,
+  )
+  .compose(EvImm.map(EvImm.mapOverSet((node) => node.get('id'))))
+  .endChain()
 
 console.log('getOutNeighboursByNodeId')
 console.log(
@@ -265,9 +295,14 @@ console.log(
   getInNeighboursByNodeId(edgesById, nodesById).toJS()
 )
 
-console.log('getNeighboursByNodeId')
+console.log('getNeighboursByNodeId_1')
 console.log(
-  getNeighboursByNodeId(edgesById, nodesById).toJS()
+  getNeighboursByNodeId_1(edgesById, nodesById).toJS()
+)
+
+console.log('getNeighboursByNodeId_2')
+console.log(
+  getNeighboursByNodeId_2(edgesById, nodesById).toJS()
 )
 
 // Pipeline example - all functions are specializable
