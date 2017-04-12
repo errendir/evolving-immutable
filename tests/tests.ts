@@ -3,7 +3,7 @@ import { Set, Map } from 'immutable'
 import {
   startChain,
   memoizeForSlots, memoizeForRecentArguments,
-  semiPureFunction, composeFunctions,
+  semiPureFunction, addStepFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
@@ -12,7 +12,7 @@ describe('startChain', () => {
   it('produces a chain that can be specialized', () => {
     let whichNumber = 0
     const toMemoizedUniqueNumberChain = startChain()
-      .compose(memoizeForRecentArguments(
+      .addStep(memoizeForRecentArguments(
         () => { whichNumber += 1; return whichNumber },
         { historyLength: 1 },
       ))
@@ -29,8 +29,8 @@ describe('startChain', () => {
   it('produces a chain that can be specialized over a map', () => {
     let whichNumber = 0
     const toMemoizedUniqueNumberChain = startChain()
-      .compose(({ id }) => id)
-      .compose(memoizeForRecentArguments(
+      .addStep(({ id }) => id)
+      .addStep(memoizeForRecentArguments(
         () => { whichNumber += 1; return whichNumber },
         { historyLength: 1 },
       ))
@@ -45,12 +45,44 @@ describe('startChain', () => {
     const result1 = mapOver(map1)
     const result2 = mapOver(map2)
 
-    console.log('result1', result1.toJS())
-    console.log('result2', result2.toJS())
-
     // The chain is NOT shared between each key of the map - map specializes it
     console.assert(result1.get('a') !== result1.get('b'))
+  })
 
+  it('does allow for chain creation as part of chain execution', () => {
+    const chain = startChain()
+      .addStep(map((value) =>
+        startChain()
+          .addStep(value => value+1)
+          .endChain()(value)
+      ))
+      .endChain()
+
+    let caught = false
+    try {
+      chain(Map({ a: 11 }))
+    } catch(err) {
+      caught = true
+    }
+    console.assert(caught === true)
+  })
+
+  it('allows for chain specialization as part of chain execution', () => {
+    const chain = startChain()
+      .addStep(map(
+        startChain()
+          .addStep(value => value+1)
+          .endChain()
+      ))
+      .endChain()
+
+    let caught = false
+    try {
+      chain(Map({ a: 11, b: 12 }))
+    } catch(err) {
+      caught = true
+    }
+    console.assert(caught === false)
   })
 })
 
@@ -58,7 +90,7 @@ describe('memoizeForSlots', () => {
   it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {
     const getTransformedObject = memoizeForSlots({ 
       computeSlot: (allObjects, objectId) => objectId,
-      executeFunction: composeFunctions(
+      executeFunction: addStepFunctions(
         (allObjects, objectId) => allObjects.get(objectId),
         memoizeForRecentArguments(object => Math.random(), { historyLength: 1 })
       )
@@ -128,13 +160,13 @@ describe('memoizeForRecentArguments', () => {
   })
 })
 
-describe('composeFunctions', () => {
-  it('preserves the internal memoization of all the composed functions', () => {
+describe('addStepFunctions', () => {
+  it('preserves the internal memoization of all the addStepd functions', () => {
     const appendOneMoreThing = (map) => map.set('one-more-thing', { value: 11 })
     let nextValue = 0
     const extractTheFake = map((object) => nextValue++)
 
-    const process1 = composeFunctions(appendOneMoreThing, extractTheFake)
+    const process1 = addStepFunctions(appendOneMoreThing, extractTheFake)
 
     const map1 = Map({ a: { value: 12 }, b: { value: 13 }})
 
@@ -146,8 +178,8 @@ describe('composeFunctions', () => {
     console.assert(result1.get('one-more-thing') !== result2.get('one-more-thing'))
   })
 
-  it('allows multiple arguments to be passed into the first composed function', () => {
-    const operation = composeFunctions(
+  it('allows multiple arguments to be passed into the first addStepd function', () => {
+    const operation = addStepFunctions(
       (allObjectsById, objectId) => allObjectsById.get(objectId),
       (object) => object
     )

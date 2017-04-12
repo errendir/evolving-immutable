@@ -3,7 +3,7 @@ import { inspect } from 'util'
 import { Record, Set, Map, ShapedMap } from 'immutable'
 
 import { 
-  executeOneOnMany, semiPureFunction, composeFunctions,
+  executeOneOnMany, semiPureFunction, addStepFunctions,
   unionMap, unionSet, safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
 
@@ -247,7 +247,7 @@ const getNeighboursByNodeId_1 = (edgesById, nodesById) => {
 }
 
 const getNeighboursByNodeId_2 = EvImm.startChain()
-  .compose(
+  .addStep(
     leftJoin<string, Edge, string, Node, any>(
       edge => Set([edge.get('source'), edge.get('target')]),
       (edge, nodes) => ({ 
@@ -259,20 +259,20 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
   )
   .mapOneToMany({
     sourceByTargetId: EvImm.startChain()
-      .compose(EvImm.group(({ edge }) => edge.get('target')))
-      .compose(EvImm.map(
+      .addStep(EvImm.group(({ edge }) => edge.get('target')))
+      .addStep(EvImm.map(
         EvImm.startChain()
-          .compose(EvImm.map(({ edge, sourceNode }) => sourceNode))
-          .compose(EvImm.toSet())
+          .addStep(EvImm.map(({ edge, sourceNode }) => sourceNode))
+          .addStep(EvImm.toSet())
           .endChain()
       ))
       .endChain(),
     targetBySourceId: EvImm.startChain()
-      .compose(EvImm.group(({ edge }) => edge.get('source')))
-      .compose(EvImm.map(
+      .addStep(EvImm.group(({ edge }) => edge.get('source')))
+      .addStep(EvImm.map(
         EvImm.startChain()
-          .compose(EvImm.map(({ edge, targetNode }) => targetNode))
-          .compose(EvImm.toSet())
+          .addStep(EvImm.map(({ edge, targetNode }) => targetNode))
+          .addStep(EvImm.toSet())
           .endChain()
       ))
       .endChain(),
@@ -282,7 +282,7 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
     ({ sourceByTargetId }) => sourceByTargetId,
     ({ targetBySourceId }) => targetBySourceId,
   )
-  .compose(EvImm.map(EvImm.mapOverSet((node) => node.get('id'))))
+  .addStep(EvImm.map(EvImm.mapOverSet((node) => node.get('id'))))
   .endChain()
 
 console.log('getOutNeighboursByNodeId')
@@ -314,7 +314,7 @@ const _getLikeUsers =
     (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
   )
 
-const _getLikeUsersByPostId = composeFunctions(
+const _getLikeUsersByPostId = addStepFunctions(
   _getLikeUsers,
   group<string, LikeUser, string>(likeUser => likeUser.postId),
   map(toSet())

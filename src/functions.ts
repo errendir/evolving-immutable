@@ -101,7 +101,7 @@ export function semiPureFunction<M, A, R>(
   return apply
 }
 
-export const composeFunctions = (...functions) => {
+export const addStepFunctions = (...functions) => {
   return semiPureFunction({
     createMemory: () => ({
       functionInstances: functions.map(fn => fn.specialize ? fn.specialize() : fn)

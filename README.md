@@ -89,3 +89,18 @@ const getLikesByPostId = semiPureFunction({
   }
 })
 ```
+
+## Chains
+The chains are here to simplify the composition of multiple operations. Chains can not be created during an execution of another chain to prevent the loss of memoization. The can however be attached to each other in various ways during the setup. A chain can map over all elements of the dataset using a second chain, before filtering the transformed elements with the third chain:
+```
+const chain = EvImm.startChain()
+  .addMapStep(
+    EvImm.startChain()
+      .addFilterStep(value => value.param > 3)
+      .addGroupStep(value => value.id)
+      .endChain()
+  )
+  .addFilterStep(
+    (groups) => !groups.isEmpty()
+  )
+```
