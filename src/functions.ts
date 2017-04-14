@@ -79,7 +79,6 @@ export const memoizeForRecentArguments = memoize((currentArguments, pastArgument
 })
 
 export const memoizeForRecentArgumentObject = memoize((currentArguments, pastArguments) => {
-  console.log(currentArguments, pastArguments)
   if(currentArguments.length !== 1 || pastArguments.length !== 1) return false
   const currentArgumentObject = currentArguments[0]
   const pastArgumentObject = pastArguments[0]
