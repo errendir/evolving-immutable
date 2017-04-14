@@ -143,6 +143,24 @@ describe('startChain', () => {
     console.assert(chain(o1) === chain(o2))
   })
 
+  it('allows for multiple types of memoization on one chain', () => {
+    let i = 0
+    const getUnique = () => i++
+
+    const chain = startChain()
+      .memoizeForObject()
+      .addStep(object => object.a + object.b)
+      .memoizeForValue()
+      .addStep(getUnique)
+      .endChain()
+
+    const o1 = { a: 1, b: 2 }
+    const o2 = { a: 2, b: 1 }
+    const o3 = { a: 2, b: 1 }
+    console.assert(chain(o1) === chain(o2))
+    console.assert(chain(o2) === chain(o3))
+  })
+
   it('correctly creates an empty chain', () => {
     const chain = startChain()
       .endChain()

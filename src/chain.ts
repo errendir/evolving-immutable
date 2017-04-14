@@ -8,54 +8,48 @@ let insideOfTheChainExecution = false
 
 // TODO: implement the `claim` method on all Operations so that the unnecessary specializations 
 // don't have to be done when Operations are passed to chains or `addStepFunctions`
-function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
-    if(insideOfTheChainExecution && !allowedInsideAChain) {
-      throw new Error('Do not create a chain as part of any chain execution')
-    }
+function _startChain(operations, allowedInsideAChain=false) {
+  if(insideOfTheChainExecution && !allowedInsideAChain) {
+    throw new Error('Do not create a chain as part of any chain execution')
+  }
 
-    const apply: any = (...args) => {
-      insideOfTheChainExecution = true
-      const [firstOperation, ...restOfOperations] = operations
-      let finalResult, error, errorWasThrown = false
-      try {
-        if(firstOperation !== undefined) {
-          finalResult = restOfOperations.reduce(
-            (result, functionInstance) => functionInstance(result),
-            firstOperation(...args)
-          )
-        } else {
-          finalResult = args[0]
-        }
-      } catch(err) {
-        errorWasThrown = true
-        error = err
+  const apply: any = (...args) => {
+    insideOfTheChainExecution = true
+    const [firstOperation, ...restOfOperations] = operations
+    let finalResult, error, errorWasThrown = false
+    try {
+      if(firstOperation !== undefined) {
+        finalResult = restOfOperations.reduce(
+          (result, functionInstance) => functionInstance(result),
+          firstOperation(...args)
+        )
+      } else {
+        finalResult = args[0]
       }
-      insideOfTheChainExecution = false
-
-      if(errorWasThrown === true) {
-        throw error
-      } 
-      return finalResult
+    } catch(err) {
+      errorWasThrown = true
+      error = err
     }
-    const specialize = () => {
-      const newOperations = operations
-        .map(operation => operation.specialize ? operation.specialize() : operation)
-      return _startChain(newOperations, true)
-    }
-    apply.specialize = () => specialize().endChain()
+    insideOfTheChainExecution = false
 
-  const makeExtendableChain = () => {
-    let childChain = null
-    let mfVHL = 0
-    let mfOHL = 0
+    if(errorWasThrown === true) {
+      throw error
+    } 
+    return finalResult
+  }
+  const specialize = () => {
+  }
+  apply.specialize = () => {
+    const newOperations = operations
+      .map(operation => operation.specialize ? operation.specialize() : operation)
+    return _startChain(newOperations, true)
+      .endChain()
+  }
+
+  const makeExtendableChain = (childChainConfig={childChain: null, memoizationType: null, historyLength: 0}) => {
+    let childChain = childChainConfig.childChain
     let wasAlreadyExtended = false
-    const _addStep = (operation, needsToBeSpecialized=true) => {
-      if(childChain !== null) {
-        throw new Error('Only the child chain can be extended')
-      }
-      if(needsToBeSpecialized) {
-        operation = operation.specialize ? operation.specialize() : operation
-      }
+    const _addStepInThisChain = (operation) => {
       if(!wasAlreadyExtended) {
         operations.push(operation)
         return makeExtendableChain()
@@ -69,6 +63,20 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
         return _startChain(operations)
       }
     }
+    const _addStep = (operation, needsToBeSpecialized=true) => {
+      if(childChain !== null) {
+        const newChildChain = childChain._addStep(operation, needsToBeSpecialized)
+        if(newChildChain !== childChain) {
+          return makeExtendableChain({ ...childChainConfig, childChain: newChildChain })
+        } else {
+          return makeExtendableChain(childChainConfig)
+        }
+      }
+      if(needsToBeSpecialized) {
+        operation = operation.specialize ? operation.specialize() : operation
+      }
+      return _addStepInThisChain(operation)
+    }
 
     const addStep = (operation) => {
       return _addStep(operation, true)
@@ -76,20 +84,28 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
 
     const memoizeForValue = ({ historyLength=1 } = {}) => {
       if(childChain !== null) {
-        throw new Error('Only the child chain can be extended')
+        const newChildChain = childChain.memoizeForValue({ historyLength })
+        if(newChildChain !== childChain) {
+          return makeExtendableChain({ ...childChainConfig, childChain: newChildChain })
+        } else {
+          return makeExtendableChain(childChainConfig)
+        }
       }
-      childChain = _startChain([], false, chain)
-      mfVHL = historyLength
-      return childChain
+      childChain = _startChain([], false)
+      return makeExtendableChain({ memoizationType: 'value', historyLength, childChain })
     }
 
     const memoizeForObject = ({ historyLength=1 } = {}) => {
       if(childChain !== null) {
-        throw new Error('Only the child chain can be extended')
+        const newChildChain = childChain.memoizeForObject({ historyLength })
+        if(newChildChain !== childChain) {
+          return makeExtendableChain({ ...childChainConfig, childChain: newChildChain })
+        } else {
+          return makeExtendableChain(childChainConfig)
+        }
       }
-      childChain = _startChain([], false, chain)
-      mfOHL = historyLength
-      return childChain
+      childChain = _startChain([], false)
+      return makeExtendableChain({ memoizationType: 'object', historyLength, childChain })
     }
 
     const mapManyToOne = (operation, ...extractors) => {
@@ -199,37 +215,29 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
     // TODO: Replace the endChain with the claim process
     // TODO: A chain that was extended but not forked will have a very unexpected behaviour on `.endChain()`
     const endChain = () => {
-      if(childChain && mfVHL > 0 && mfOHL > 0) {
-        throw new Error('Invalid chain state')
-      }
-      if(childChain && mfVHL > 0) {
-        const endedChildChain = childChain.__apply
-        childChain = null
-        return _addStep(
+      if(childChain !== null && childChainConfig.memoizationType === 'value') {
+        const endedChildChain = childChain.endChain()
+        return _addStepInThisChain(
           EvImmInternals.memoizeForRecentArguments(
             endedChildChain,
-            { historyLength: mfVHL }
-          ),
-          false
+            { historyLength: childChainConfig.historyLength }
+          )
         ).endChain()
       } 
-      if(childChain && mfOHL > 0) {
-        const endedChildChain = childChain.__apply
-        childChain = null
-        return _addStep(
+      if(childChain !== null && childChainConfig.memoizationType === 'object') {
+        const endedChildChain = childChain.endChain()
+        return _addStepInThisChain(
           EvImmInternals.memoizeForRecentArgumentObject(
             endedChildChain,
-            { historyLength: mfOHL }
-          ),
-          false
+            { historyLength: childChainConfig.historyLength }
+          )
         ).endChain()
       }
-      if(parentChain) return parentChain.endChain()
       return apply
     }
 
     const chain = { 
-      __apply: apply,
+      _addStep,
       addStep,
       memoizeForValue,
       memoizeForObject,
@@ -245,7 +253,6 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
       addZipStep,
       addSafeUnionSetStep,
       // All the transformation steps - END
-      specialize,
       endChain,
     }
     return chain
