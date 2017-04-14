@@ -8,7 +8,7 @@ let insideOfTheChainExecution = false
 
 // TODO: implement the `claim` method on all Operations so that the unnecessary specializations 
 // don't have to be done when Operations are passed to chains or `addStepFunctions`
-function _startChain(operations, allowedInsideAChain=false) {
+function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
   if(insideOfTheChainExecution && !allowedInsideAChain) {
     throw new Error('Do not create a chain as part of any chain execution')
   }
@@ -36,12 +36,15 @@ function _startChain(operations, allowedInsideAChain=false) {
   const specialize = () => {
     const newOperations = operations
       .map(operation => operation.specialize ? operation.specialize() : operation)
-    return _startChain(newOperations, true)
-      .endChain()
+    const specializedParent = parentChain ? parentChain.specialize() : null
+    return _startChain(newOperations, true, specializedParent)
   }
-  apply.specialize = specialize
+  apply.specialize = () => specialize().endChain()
 
   const makeExtendableChain = () => {
+    let childChain = null
+    let mfVHL = 0
+    let mfOHL = 0
     let wasAlreadyExtended = false
     const _addStep = (operation, needsToBeSpecialized=true) => {
       if(needsToBeSpecialized) {
@@ -65,6 +68,18 @@ function _startChain(operations, allowedInsideAChain=false) {
       return _addStep(operation, true)
     }
 
+    const memoizeForValue = ({ historyLength=1 } = {}) => {
+      childChain = _startChain([], false, chain)
+      mfVHL = historyLength
+      return childChain
+    }
+
+    const memoizeForObject = ({ historyLength=1 } = {}) => {
+      childChain = _startChain([], false, chain)
+      mfOHL = historyLength
+      return childChain
+    }
+
     const mapManyToOne = (operation, ...extractors) => {
       return _addStep(
         executeOneOnMany(
@@ -73,6 +88,7 @@ function _startChain(operations, allowedInsideAChain=false) {
         false
       )
     }
+
     const mapOneToMany = (operationsByName) => {
       return _addStep(
         executeManyOnOne(operationsByName),
@@ -170,10 +186,28 @@ function _startChain(operations, allowedInsideAChain=false) {
 
     // TODO: Replace the endChain with the claim process
     // TODO: A chain that was extended but not forked will have a very unexpected behaviour on `.endChain()`
-    const endChain = () => apply
+    const endChain = () => {
+      if(parentChain) return parentChain.endChain()
+      if(childChain && mfVHL > 0) {
+        return EvImmInternals.memoizeForRecentArguments(
+          childChain.__apply,
+          { historyLength: mfVHL }
+        )
+      }
+      if(childChain && mfOHL > 0) {
+        return EvImmInternals.memoizeForRecentArgumentObject(
+          childChain.__apply,
+          { historyLength: mfOHL }
+        )
+      }
+      return apply
+    }
 
     const chain = { 
+      __apply: apply,
       addStep,
+      memoizeForValue,
+      memoizeForObject,
       mapManyToOne,
       mapOneToMany,
       // All the transformation steps - START
@@ -186,6 +220,7 @@ function _startChain(operations, allowedInsideAChain=false) {
       addZipStep,
       addSafeUnionSetStep,
       // All the transformation steps - END
+      specialize,
       endChain,
     }
     return chain

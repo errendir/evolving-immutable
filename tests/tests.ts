@@ -49,7 +49,7 @@ describe('startChain', () => {
     console.assert(result1.get('a') !== result1.get('b'))
   })
 
-  it('does allow for chain creation as part of chain execution', () => {
+  it('does not allow for chain creation as part of chain execution', () => {
     const chain = startChain()
       .addStep(map((value) =>
         startChain()
@@ -83,6 +83,34 @@ describe('startChain', () => {
       caught = true
     }
     console.assert(caught === false)
+  })
+
+  it('allows for memoization of the tail of the chain by current value', () => {
+    let i = 0
+    const getUnique = () => i++
+
+    const chain = startChain()
+      .addStep((object) => object.value)
+      .memoizeForValue()
+      .addStep(getUnique)
+      .endChain()
+
+    console.assert(chain({ value: 15 }) === chain({ value: 15 }))
+    console.assert(chain({ value: 15 }) !== chain({ value: 14 }))
+  })
+
+  it('allows for memoization of the tail of the chain by current object', () => {
+    let i = 0
+    const getUnique = () => i++
+
+    const chain = startChain()
+      .addStep(v => v)
+      .memoizeForObject()
+      .addStep(getUnique)
+      .endChain()
+
+    console.assert(chain({ value: 15, anotherProp: 14 }) === chain({ value: 15, anotherProp: 14 }))
+    console.assert(chain({ value: 15, anotherProp: 14 }) !== chain({ value: 15, anotherProp: 13 }))
   })
 })
 

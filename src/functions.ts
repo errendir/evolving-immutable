@@ -47,7 +47,7 @@ export const memoizeForSlots = ({ computeSlot, executeFunction }) => {
   })
 }
 
-export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={}) => {
+const memoize = (comparator) => (executeFunction, { historyLength=1 }={}) => {
   return semiPureFunction({
     createMemory: () => ({
       recentArgumentsValues: [] as { value: any, arguments: any }[],
@@ -55,13 +55,7 @@ export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={
     }),
     executeFunction: ({ recentArgumentsValues, executeFunction }, ...args) => {
       const pastArgumentsValue = recentArgumentsValues
-        .find(({ arguments: recentArguments }) => {
-          if(recentArguments.length !== args.length) return false
-          for(let i=0; i<recentArguments.length; ++i) {
-            if(recentArguments[i] !== args[i]) return false
-          }
-          return true
-        })
+        .find(({ arguments: pastArguments }) => comparator(args, pastArguments))
       if(pastArgumentsValue !== undefined) {
         return pastArgumentsValue.value
       } else {
@@ -75,6 +69,32 @@ export const memoizeForRecentArguments = (executeFunction, { historyLength=1 }={
     }
   })
 }
+
+export const memoizeForRecentArguments = memoize((currentArguments, pastArguments) => {
+  if(pastArguments.length !== currentArguments.length) return false
+  for(let i=0; i<pastArguments.length; ++i) {
+    if(pastArguments[i] !== currentArguments[i]) return false
+  }
+  return true
+})
+
+export const memoizeForRecentArgumentObject = memoize((currentArguments, pastArguments) => {
+  if(currentArguments.length !== 1 || pastArguments.length !== 1) return false
+  const currentArgumentObject = currentArguments[0]
+  const pastArgumentObject = pastArguments[0]
+
+  // Depth one equality
+  if(currentArgumentObject === pastArgumentObject) return true
+  const currentNames = Object.getOwnPropertyNames(currentArgumentObject)
+  const pastNames = Object.getOwnPropertyNames(pastArgumentObject)
+  if(currentNames.length !== pastNames.length) return false
+
+  for(let i=0; i<currentNames.length; ++i) {
+    const name = currentNames[i]
+    if(currentArgumentObject[name] !== pastArgumentObject[name]) return false
+  }
+  return true
+})
 
 interface SemiPureConfiguration<M, A, R> {
   createMemory: () => M,
