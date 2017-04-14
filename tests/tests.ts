@@ -112,6 +112,14 @@ describe('startChain', () => {
     console.assert(chain({ value: 15, anotherProp: 14 }) === chain({ value: 15, anotherProp: 14 }))
     console.assert(chain({ value: 15, anotherProp: 14 }) !== chain({ value: 15, anotherProp: 13 }))
   })
+
+  it('correctly creates an empty chain', () => {
+    const chain = startChain()
+      .endChain()
+
+    const obj1 = { a: 11 }
+    console.assert(chain(obj1) === chain(obj1))
+  })
 })
 
 describe('memoizeForSlots', () => {
