@@ -9,37 +9,40 @@ let insideOfTheChainExecution = false
 // TODO: implement the `claim` method on all Operations so that the unnecessary specializations 
 // don't have to be done when Operations are passed to chains or `addStepFunctions`
 function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
-  if(insideOfTheChainExecution && !allowedInsideAChain) {
-    throw new Error('Do not create a chain as part of any chain execution')
-  }
-
-  const apply: any = (...args) => {
-    insideOfTheChainExecution = true
-    const [firstOperation, ...restOfOperations] = operations
-    let finalResult, error, errorWasThrown = false
-    try {
-      finalResult = restOfOperations.reduce(
-        (result, functionInstance) => functionInstance(result),
-        firstOperation(...args)
-      )
-    } catch(err) {
-      errorWasThrown = true
-      error = err
+    if(insideOfTheChainExecution && !allowedInsideAChain) {
+      throw new Error('Do not create a chain as part of any chain execution')
     }
-    insideOfTheChainExecution = false
 
-    if(errorWasThrown === true) {
-      throw error
-    } 
-    return finalResult
-  }
-  const specialize = () => {
-    const newOperations = operations
-      .map(operation => operation.specialize ? operation.specialize() : operation)
-    const specializedParent = parentChain ? parentChain.specialize() : null
-    return _startChain(newOperations, true, specializedParent)
-  }
-  apply.specialize = () => specialize().endChain()
+    const apply: any = (...args) => {
+      insideOfTheChainExecution = true
+      const [firstOperation, ...restOfOperations] = operations
+      let finalResult, error, errorWasThrown = false
+      try {
+        if(firstOperation !== undefined) {
+          finalResult = restOfOperations.reduce(
+            (result, functionInstance) => functionInstance(result),
+            firstOperation(...args)
+          )
+        } else {
+          finalResult = args[0]
+        }
+      } catch(err) {
+        errorWasThrown = true
+        error = err
+      }
+      insideOfTheChainExecution = false
+
+      if(errorWasThrown === true) {
+        throw error
+      } 
+      return finalResult
+    }
+    const specialize = () => {
+      const newOperations = operations
+        .map(operation => operation.specialize ? operation.specialize() : operation)
+      return _startChain(newOperations, true)
+    }
+    apply.specialize = () => specialize().endChain()
 
   const makeExtendableChain = () => {
     let childChain = null
@@ -47,6 +50,9 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
     let mfOHL = 0
     let wasAlreadyExtended = false
     const _addStep = (operation, needsToBeSpecialized=true) => {
+      if(childChain !== null) {
+        throw new Error('Only the child chain can be extended')
+      }
       if(needsToBeSpecialized) {
         operation = operation.specialize ? operation.specialize() : operation
       }
@@ -69,12 +75,18 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
     }
 
     const memoizeForValue = ({ historyLength=1 } = {}) => {
+      if(childChain !== null) {
+        throw new Error('Only the child chain can be extended')
+      }
       childChain = _startChain([], false, chain)
       mfVHL = historyLength
       return childChain
     }
 
     const memoizeForObject = ({ historyLength=1 } = {}) => {
+      if(childChain !== null) {
+        throw new Error('Only the child chain can be extended')
+      }
       childChain = _startChain([], false, chain)
       mfOHL = historyLength
       return childChain
@@ -189,16 +201,26 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
     const endChain = () => {
       if(parentChain) return parentChain.endChain()
       if(childChain && mfVHL > 0) {
-        return EvImmInternals.memoizeForRecentArguments(
-          childChain.__apply,
-          { historyLength: mfVHL }
-        )
-      }
+        const endedChildChain = childChain.__apply
+        childChain = null
+        return _addStep(
+          EvImmInternals.memoizeForRecentArguments(
+            endedChildChain,
+            { historyLength: mfVHL }
+          ),
+          false
+        ).endChain()
+      } 
       if(childChain && mfOHL > 0) {
-        return EvImmInternals.memoizeForRecentArgumentObject(
-          childChain.__apply,
-          { historyLength: mfOHL }
-        )
+        const endedChildChain = childChain.__apply
+        childChain = null
+        return _addStep(
+          EvImmInternals.memoizeForRecentArgumentObject(
+            endedChildChain,
+            { historyLength: mfOHL }
+          ),
+          false
+        ).endChain()
       }
       return apply
     }

@@ -85,12 +85,26 @@ describe('startChain', () => {
     console.assert(caught === false)
   })
 
+  it('allows for memoization of the full the chain by arguments values', () => {
+    let i = 0
+    const getUnique = () => i++
+
+    const chain = startChain()
+      .memoizeForValue()
+      .addStep(getUnique)
+      .endChain()
+
+    console.assert(chain(15) === chain(15))
+    console.assert(chain(15) !== chain(14))
+  })
+
   it('allows for memoization of the tail of the chain by current value', () => {
     let i = 0
     const getUnique = () => i++
 
     const chain = startChain()
-      .addStep((object) => object.value)
+      .addStep(complexObject => complexObject.value)
+      .addStep(value => { console.log(value); return value })
       .memoizeForValue()
       .addStep(getUnique)
       .endChain()
