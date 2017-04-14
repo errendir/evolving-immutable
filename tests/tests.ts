@@ -127,6 +127,22 @@ describe('startChain', () => {
     console.assert(chain({ value: 15, anotherProp: 14 }) !== chain({ value: 15, anotherProp: 13 }))
   })
 
+  it('allows for multiple types of memoization on one chain', () => {
+    let i = 0
+    const getUnique = () => i++
+
+    const chain = startChain()
+      .memoizeForValue()
+      .addStep(object => ({ ...object, c: object.a + object.b }))
+      .memoizeForObject()
+      .addStep(getUnique)
+      .endChain()
+
+    const o1 = { a: 15, b: 14 }
+    const o2 = { a: 15, b: 14 }
+    console.assert(chain(o1) === chain(o2))
+  })
+
   it('correctly creates an empty chain', () => {
     const chain = startChain()
       .endChain()

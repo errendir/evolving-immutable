@@ -199,7 +199,9 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
     // TODO: Replace the endChain with the claim process
     // TODO: A chain that was extended but not forked will have a very unexpected behaviour on `.endChain()`
     const endChain = () => {
-      if(parentChain) return parentChain.endChain()
+      if(childChain && mfVHL > 0 && mfOHL > 0) {
+        throw new Error('Invalid chain state')
+      }
       if(childChain && mfVHL > 0) {
         const endedChildChain = childChain.__apply
         childChain = null
@@ -222,6 +224,7 @@ function _startChain(operations, allowedInsideAChain=false, parentChain=null) {
           false
         ).endChain()
       }
+      if(parentChain) return parentChain.endChain()
       return apply
     }
 
