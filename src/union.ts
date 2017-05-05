@@ -2,6 +2,18 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { semiPureFunction } from './functions'
 
+export function safeUnionMap<K,V>() {
+  return semiPureFunction({
+    createMemory: () => ({
+      union: unionMap<K,V>(),
+      emptyMap: Map<K,V>(),
+    }),
+    executeFunction: ({ union, emptyMap }, leftMap: Map<K,V>, rightMap: Map<K,V>) => {
+      return union(leftMap || emptyMap, rightMap || emptyMap)
+    }
+  })
+}
+
 export function safeUnionSet<E>() {
   return semiPureFunction({
     createMemory: () => ({
