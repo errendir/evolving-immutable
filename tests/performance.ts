@@ -3,16 +3,15 @@ import { Map, Set } from 'immutable'
 import * as EvolvingImmutable from '../src/'
 import * as NaiveImmutable from './naiveTransformations'
 
-console.log('Comparing perf of group')
 interface Like { id: number, userId: number, dataPiece1: number }
 const generateLike = () => ({ 
   id: Math.floor(Math.random()*1000000),
   userId: Math.floor(Math.random()*100),
   dataPiece1: Math.floor(Math.random()*1000000)
 })
-const generateLikes = () => {
+const generateLikes = (NUMBER_OF_LIKES=10000) => {
   const likesById = Map<any, any>().asMutable()
-  for(let i=0; i<10000; ++i) {
+  for(let i=0; i<NUMBER_OF_LIKES; ++i) {
     const like = generateLike()
     likesById.set(like.id, like)
   }
@@ -38,6 +37,29 @@ const perturbLikes = (likesById) => {
 }
 const debounce = (likesById) => Map(likesById.entrySeq().toJS())
 
+console.log('Testing perf of filter')
+const testFilterSpeed = () => {
+  const likesById = generateLikes(10000)
+
+  const specialUsersFilter_ev = EvolvingImmutable.filter(like => like.userId % 3 === 0)
+  const specialUsersFilter_na = NaiveImmutable.filter(like => like.userId % 3 === 0)
+
+  console.time('ev: filter one map')
+  specialUsersFilter_ev(likesById)
+  console.timeEnd('ev: filter one map')
+
+  console.time('ev: diff one map')
+  likesById.diffFrom(Map())
+  console.timeEnd('ev: diff one map')
+
+  console.time('na: filter one map')
+  specialUsersFilter_na(likesById)
+  console.timeEnd('na: filter one map')
+}
+
+testFilterSpeed()
+
+console.log('Comparing perf of group')
 const testContinuousModifications = (description, updateFn, noMods, sequenceLength=1000) => {
   console.log(`Sequence of ${sequenceLength} continuous objects - ${noMods} ${description} at a time`)
   console.time('sequence generation')

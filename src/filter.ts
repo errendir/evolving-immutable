@@ -1,8 +1,8 @@
 import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 export const filter = (fn) => {
-  let currentFnInstances = Map<any, any>()
-  let currentValue = Map()
+  let currentFnInstances = Map<any, any>().asMutable()
+  let currentValue = Map().asMutable()
   let currentArgument = Map()
   const apply : any = (newArgument) => {
     const argumentDiff = newArgument.diffFrom(currentArgument)
@@ -34,8 +34,9 @@ export const filter = (fn) => {
         newValue = newValue.set(key, next)
       }
     })
-    currentValue = newValue
-    return newValue
+    const newValueImmutable = newValue.asImmutable()
+    currentValue = newValueImmutable.asMutable()
+    return newValueImmutable
   }
   const specialize = () => {
     return filter(fn)

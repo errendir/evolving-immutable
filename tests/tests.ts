@@ -85,7 +85,7 @@ describe('startChain', () => {
     console.assert(caught === false)
   })
 
-  it('allows for memoization of the full the chain by arguments values', () => {
+  it('allows for memoization of the full chain by arguments values', () => {
     let i = 0
     const getUnique = () => i++
 
@@ -104,7 +104,6 @@ describe('startChain', () => {
 
     const chain = startChain()
       .addStep(complexObject => complexObject.value)
-      .addStep(value => { console.log(value); return value })
       .memoizeForValue()
       .addStep(getUnique)
       .endChain()

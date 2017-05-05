@@ -12,34 +12,33 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
   let currentValue = Map<any,any>()
   let currentLeftArgument = Map<any,any>()
   let currentRightArgument = Map<any,any>()
-  let currentAttachInstances = Map<any, any>()
+  let currentAttachInstances = Map<any, any>().asMutable()
 
   const apply: any = (newLeftArgument, newRightArgument) => {
     const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
     const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
 
-    let newAttachInstances = currentAttachInstances
     let newValue = currentValue
 
     rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
       const leftValue = currentLeftArgument.get(rightKey)
       if(leftValue !== undefined) {
-        const attachInstance = newAttachInstances.get(rightKey)
+        const attachInstance = currentAttachInstances.get(rightKey)
         newValue = newValue.set(rightKey, attachInstance(leftValue, undefined))
       } else {
-        newAttachInstances = newAttachInstances.remove(rightKey)
+        currentAttachInstances.remove(rightKey)
         newValue = newValue.remove(rightKey)
       }
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
-      const attachInstance = newAttachInstances.get(rightKey) || 
+      const attachInstance = currentAttachInstances.get(rightKey) || 
         (attach.specialize ? attach.specialize() : attach)
-      newAttachInstances = newAttachInstances.set(rightKey, attachInstance)
+      currentAttachInstances.set(rightKey, attachInstance)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
     })
     rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
-      const attachInstance = newAttachInstances.get(rightKey)
+      const attachInstance = currentAttachInstances.get(rightKey)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, next))
     })
@@ -47,22 +46,22 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
     leftArgumentDiff.removed.forEach((leftValue, leftKey) => {
       const rightValue = newRightArgument.get(leftKey)
       if(rightValue !== undefined) {
-        const attachInstance = newAttachInstances.get(leftKey)
+        const attachInstance = currentAttachInstances.get(leftKey)
         newValue = newValue.set(leftKey, attachInstance(undefined, rightValue))
       } else {
-        newAttachInstances = newAttachInstances.remove(leftKey)
+        currentAttachInstances.remove(leftKey)
         newValue = newValue.remove(leftKey)
       }
     })
     leftArgumentDiff.added.forEach((leftValue, leftKey) => {
-      const attachInstance = newAttachInstances.get(leftKey) || 
+      const attachInstance = currentAttachInstances.get(leftKey) || 
         (attach.specialize ? attach.specialize() : attach)
-      newAttachInstances = newAttachInstances.set(leftKey, attachInstance)
+      currentAttachInstances.set(leftKey, attachInstance)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
     })
     leftArgumentDiff.updated.forEach(({ prev, next }, leftKey) => {
-      const attachInstance = newAttachInstances.get(leftKey)
+      const attachInstance = currentAttachInstances.get(leftKey)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(next, rightValue))
     })
@@ -70,7 +69,6 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
     currentValue = newValue
     currentLeftArgument = newLeftArgument
     currentRightArgument = newRightArgument
-    currentAttachInstances = newAttachInstances
 
     return newValue
   }

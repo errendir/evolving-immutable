@@ -32,30 +32,29 @@ export const flattenMap = () => {
 
   let currentValue = Map<any, any>()
   // TODO: consider using OrderedSet to force some sort of consistent priority
-  let currentKeyToSourceKeys = Map<any, Set<any>>()
+  let currentKeyToSourceKeys = Map<any, Set<any>>().asMutable()
 
   const apply: any = (newArgument) => {
     const argumentDiff = newArgument.diffFrom(currentArgument)
 
     let newValue = currentValue
-    let newKeyToSourceKeys = currentKeyToSourceKeys
 
     const removeValueKeyFromSource = (value, key, sourceKey) => {
-      newKeyToSourceKeys = newKeyToSourceKeys.update(key, sources => sources.remove(sourceKey))
-      if(newKeyToSourceKeys.get(key).isEmpty()) {
-        newKeyToSourceKeys = newKeyToSourceKeys.remove(key)
+      currentKeyToSourceKeys.update(key, sources => sources.remove(sourceKey))
+      if(currentKeyToSourceKeys.get(key).isEmpty()) {
+        currentKeyToSourceKeys.remove(key)
         newValue = newValue.remove(key)
       } else if(newValue.get(key) === value) {
         // TODO: More inconsistency (described below too) - even if value taken
         // for the key was `=== value` doesn't mean it was taken from this removed source
-        const remainingSourceKey = newKeyToSourceKeys.get(key).last()
+        const remainingSourceKey = currentKeyToSourceKeys.get(key).last()
         const remainingValue = currentArgument.get(remainingSourceKey).get(key)
         newValue = newValue.set(key, remainingValue)
       }
     }
 
     const addValueKeyFromSource = (value, key, sourceKey) => {
-      newKeyToSourceKeys = newKeyToSourceKeys.update(key, sources => (sources || Set()).add(sourceKey))
+      currentKeyToSourceKeys.update(key, sources => (sources || Set().asMutable()).add(sourceKey))
       newValue = newValue.set(key, value)
     }
   
@@ -90,7 +89,6 @@ export const flattenMap = () => {
     })
 
     currentValue = newValue
-    currentKeyToSourceKeys = newKeyToSourceKeys
 
     return currentValue
   }
