@@ -108,6 +108,19 @@ function _startChain(operations, allowedInsideAChain=false) {
       return makeExtendableChain({ memoizationType: 'object', historyLength, childChain })
     }
 
+    const wrapSimpleOperationCreator = (operationCreator) => (...args) => {
+      return _addStep(
+        operationCreator(...args),
+        false,
+      )
+    }
+
+    const addMapStep = wrapSimpleOperationCreator(EvImmInternals.map)
+    const addGroupStep = wrapSimpleOperationCreator(EvImmInternals.group)
+    const addFilterStep = wrapSimpleOperationCreator(EvImmInternals.filter)
+    const addToSetStep = wrapSimpleOperationCreator(EvImmInternals.toSet)
+    const addToMapStep = wrapSimpleOperationCreator(EvImmInternals.toMap)
+
     const mapManyToOne = (operation, ...extractors) => {
       return _addStep(
         executeOneOnMany(
@@ -139,41 +152,6 @@ function _startChain(operations, allowedInsideAChain=false) {
             return leftJoin(leftMap, rightMap)
           }
         }),
-        false
-      )
-    }
-
-    const addMapStep = (fn) => {
-      return _addStep(
-        EvImmInternals.map(fn),
-        false
-      )
-    }
-
-    const addGroupStep = (fn) => {
-      return _addStep(
-        EvImmInternals.group(fn),
-        false
-      )
-    }
-
-    const addFilterStep = (fn) => {
-      return _addStep(
-        EvImmInternals.filter(fn),
-        false
-      )
-    }
-
-    const addToSetStep = () => {
-      return _addStep(
-        EvImmInternals.toSet(),
-        false
-      )
-    }
-
-    const addToMapStep = (fn) => {
-      return _addStep(
-        EvImmInternals.toMap(fn),
         false
       )
     }
