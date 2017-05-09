@@ -62,7 +62,7 @@ export function groupDiffProcessor(fn) {
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
           currentValue.remove(prevGroup)
-          remove(prevSubCollection, prevGroup, key)
+          remove(prevSubCollection, prevGroup)
         } else {
           currentValue.set(prevGroup, nextSubCollection)
           //update({ prev: prevSubCollection, next: nextSubCollection }, group)
