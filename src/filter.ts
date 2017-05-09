@@ -1,47 +1,55 @@
 import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
-export const filter = (fn) => {
+import { wrapDiffProcessor } from './wrapDiffProcessor'
+
+export const filterDiffProcessor = (fn, rememberPresent = true) => {
   let currentFnInstances = Map<any, any>().asMutable()
-  let currentValue = Map().asMutable()
-  let currentArgument = Map()
-  const apply : any = (newArgument) => {
-    const argumentDiff = newArgument.diffFrom(currentArgument)
-    currentArgument = newArgument
-
-    let newValue = currentValue
-    argumentDiff.removed.forEach((value, key) => {
-      currentFnInstances = currentFnInstances.remove(key)
-      if(newValue.get(key) !== undefined) {
-        newValue = newValue.remove(key)
+  let presentKeys = Set<any>().asMutable()
+  const diffProcessor = ({ remove, add, update }) => {
+    return {
+      remove: (value, key) => {
+        currentFnInstances.remove(key)
+        if(presentKeys.has(key)) {
+          presentKeys.delete(key)
+          remove(value, key)
+        }
+      },
+      add: (value, key) => {
+        const fnInstance = fn.specialize ? fn.specialize() : fn
+        currentFnInstances.set(key, fnInstance)
+        if(fnInstance(value, key)) {
+          presentKeys.add(key)
+          add(value, key)
+        }
+      },
+      update: (prevNext, key) => {
+        const {prev, next} = prevNext
+        const fnInstance = currentFnInstances.get(key)
+        const isIn = presentKeys.has(key)
+        const shouldBeIn = fnInstance(next, key)
+        if(!isIn && shouldBeIn) {
+          presentKeys.add(key)
+          add(next, key)
+        } else if (isIn && !shouldBeIn) {
+          presentKeys.delete(key)
+          remove(prev, key)
+        } else if (isIn && shouldBeIn && prev !== next) {
+          update(prevNext, key)
+        }
       }
-    })
-    argumentDiff.added.forEach((value, key) => {
-      const fnInstance = fn.specialize ? fn.specialize() : fn
-      currentFnInstances = currentFnInstances.set(key, fnInstance)
-      if(fnInstance(value, key)) {
-        newValue = newValue.set(key, value)
-      }
-    })
-    argumentDiff.updated.forEach(({prev, next}, key) => {
-      const fnInstance = currentFnInstances.get(key)
-      const isIn = fnInstance(prev, key)
-      const shouldBeIn = fnInstance(next, key)
-      if(!isIn && shouldBeIn) {
-        newValue = newValue.set(key, next)
-      } else if (isIn && !shouldBeIn) {
-        newValue = newValue.remove(key)
-      } else if (isIn && shouldBeIn && prev !== next) {
-        newValue = newValue.set(key, next)
-      }
-    })
-    const newValueImmutable = newValue.asImmutable()
-    currentValue = newValueImmutable.asMutable()
-    return newValueImmutable
+    }
   }
+
   const specialize = () => {
-    return filter(fn)
+    return filterDiffProcessor(fn, rememberPresent)
   }
-  apply.specialize = specialize
 
-  return apply
+  return {
+    diffProcessor,
+    specialize,
+  }
+}
+
+export const filter = (fn) => {
+  return wrapDiffProcessor(filterDiffProcessor(fn, false))
 }

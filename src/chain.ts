@@ -4,7 +4,16 @@ import { executeManyOnOne, executeOneOnMany } from './functions'
 
 import { EvImmInternals } from './'
 
+import { applyToMapDiffProcessor } from './wrapDiffProcessor'
+
 let insideOfTheChainExecution = false
+
+const specializeOperation = (operation) => {
+  if(operation.specialize) {
+    return operation.specialize()
+  }
+  return operation
+}
 
 // TODO: implement the `claim` method on all Operations so that the unnecessary specializations 
 // don't have to be done when Operations are passed to chains or `addStepFunctions`
@@ -13,19 +22,55 @@ function _startChain(operations, allowedInsideAChain=false) {
     throw new Error('Do not create a chain as part of any chain execution')
   }
 
+  const previousPartialArguments = []
+  const previousPartialValues = []
+
   const apply: any = (...args) => {
     insideOfTheChainExecution = true
-    const [firstOperation, ...restOfOperations] = operations
     let finalResult, error, errorWasThrown = false
     try {
-      if(firstOperation !== undefined) {
-        finalResult = restOfOperations.reduce(
-          (result, functionInstance) => functionInstance(result),
-          firstOperation(...args)
-        )
-      } else {
-        finalResult = args[0]
+      let currentArguments = args
+
+      const getChainableBlock = (ops) => {
+        const chainableOperations = []
+        while(ops[0] && ops[0].diffProcessor !== undefined) {
+          chainableOperations.push(ops[0])
+          ops.shift()
+        }
+        return chainableOperations
       }
+      
+      const operationsToProcess = operations.slice()
+      let chainableBlockId = 0
+      while(operationsToProcess.length > 0) {
+        const chainableOperations = getChainableBlock(operationsToProcess)
+        // TODO: Correctly grouping the diff-passing operations can be done during the chain creation
+        if(chainableOperations.length > 0) {
+          console.log('Optimizing a block of', chainableOperations.length, 'operations')
+          let finalMap = previousPartialValues[chainableBlockId] || Map<any,any>()
+          let nextDiffProcessor = applyToMapDiffProcessor(() => finalMap, (map) => finalMap = map)
+          chainableOperations.reverse().forEach(({ diffProcessor }) => {
+            nextDiffProcessor = diffProcessor(nextDiffProcessor)
+          })
+
+          // Create the first diff
+          currentArguments[0].diffFromCallbacks(
+            previousPartialArguments[chainableBlockId] || Map<any,any>(),
+            nextDiffProcessor,
+          )
+
+          previousPartialArguments[chainableBlockId] = currentArguments[0]
+          previousPartialValues[chainableBlockId] = finalMap
+          currentArguments = [finalMap]
+          chainableBlockId += 1
+        }
+
+        const operation = operationsToProcess.shift()
+        if(operation) {
+          currentArguments = [operation(...currentArguments)]
+        }
+      }
+      finalResult = currentArguments[0]
     } catch(err) {
       errorWasThrown = true
       error = err
@@ -41,7 +86,7 @@ function _startChain(operations, allowedInsideAChain=false) {
   }
   apply.specialize = () => {
     const newOperations = operations
-      .map(operation => operation.specialize ? operation.specialize() : operation)
+      .map(specializeOperation)
     return _startChain(newOperations, true)
       .endChain()
   }
@@ -49,7 +94,12 @@ function _startChain(operations, allowedInsideAChain=false) {
   const makeExtendableChain = (childChainConfig={childChain: null, memoizationType: null, historyLength: 0}) => {
     let childChain = childChainConfig.childChain
     let wasAlreadyExtended = false
+    let isOutputingDiff = false
+
     const _addStepInThisChain = (operation) => {
+      if(operation.diffProcessor !== undefined) {
+
+      }
       if(!wasAlreadyExtended) {
         operations.push(operation)
         return makeExtendableChain()
@@ -58,7 +108,7 @@ function _startChain(operations, allowedInsideAChain=false) {
         // Chains are right now in a very strange position with regard to mutability
         const newOperations = operations
           .slice(0, operations.length-1)
-          .map(operation => operation.specialize ? operation.specialize() : operation)
+          .map(specializeOperation)
           .push(operation)
         return _startChain(operations)
       }
@@ -73,7 +123,7 @@ function _startChain(operations, allowedInsideAChain=false) {
         }
       }
       if(needsToBeSpecialized) {
-        operation = operation.specialize ? operation.specialize() : operation
+        operation = specializeOperation(operation)
       }
       return _addStepInThisChain(operation)
     }
@@ -114,6 +164,12 @@ function _startChain(operations, allowedInsideAChain=false) {
         false,
       )
     }
+
+    // const addMapStep = wrapSimpleOperationCreator(EvImmInternals.mapDiffProcessor)
+    // const addGroupStep = wrapSimpleOperationCreator(EvImmInternals.groupDiffProcessor)
+    // const addFilterStep = wrapSimpleOperationCreator(EvImmInternals.filterDiffProcessor)
+    // const addToSetStep = wrapSimpleOperationCreator(EvImmInternals.toSetDiffProcessor)
+    // const addToMapStep = wrapSimpleOperationCreator(EvImmInternals.toMapDiffProcessor)
 
     const addMapStep = wrapSimpleOperationCreator(EvImmInternals.map)
     const addGroupStep = wrapSimpleOperationCreator(EvImmInternals.group)

@@ -1,17 +1,10 @@
 import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
-interface GroupKeyFunction<K, V, GK> {
-  (value: V, key: K): Iterable<GK, GK> | GK,
-  specialize?: () => GroupKeyFunction<K, V, GK>
-}
-interface GroupOperation<K, V, GK> {
-  (map: Map<K, V>): Map<GK, Map<K, V>>,
-  specialize: () => GroupOperation<K, V, GK>
-}
-export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<K, V, GK> {
+import { wrapDiffProcessor } from './wrapDiffProcessor'
+
+export function groupDiffProcessor(fn) { 
   let currentFnInstances = Map<any, any>().asMutable()
-  let currentValue = Map<any,any>().asMutable()
-  let currentArgument = Map()
+  let currentValue = Map<any, any>().asMutable()
 
   const groupsSentinel = []
   const findGroups = (group) => {
@@ -25,11 +18,8 @@ export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<
     return groups
   }
 
-  const apply: any = (newArgument) => {
-    const argumentDiff = newArgument.diffFrom(currentArgument)
-    currentArgument = newArgument
-
-    argumentDiff.removed.forEach((value, key) => {
+  const diffProcessor = ({ remove, add, update }) => ({
+    remove: (value, key) => {
       const fnInstance = currentFnInstances.get(key)
       const groups = findGroups(fnInstance(value, key))
       currentFnInstances.remove(key)
@@ -38,20 +28,29 @@ export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
           currentValue.remove(group)
+          remove(prevSubCollection, group)
         } else {
           currentValue.set(group, nextSubCollection)
+          update({ prev: prevSubCollection, next: nextSubCollection }, group)
         }
       })
-    })
-    argumentDiff.added.forEach((value, key) => {
+    },
+    add: (value, key) => {
       const fnInstance = fn.specialize ? fn.specialize() : fn
       const groups = findGroups(fnInstance(value, key))
       currentFnInstances.set(key, fnInstance)
       groups.forEach(group => {
-        currentValue.update(group, (subCollection) => (subCollection || Map()).set(key,value))
+        const prevSubCollection = currentValue.get(group)
+        const nextSubCollection = (prevSubCollection || Map()).set(key,value)
+        currentValue.set(group, nextSubCollection)
+        if(!prevSubCollection) {
+          add(nextSubCollection, group)
+        } else {
+          update({ prev: prevSubCollection, next: nextSubCollection }, group)
+        }
       })
-    })
-    argumentDiff.updated.forEach(({prev, next}, key) => {
+    },
+    update: ({prev, next}, key) => {
       const fnInstance = currentFnInstances.get(key)
       const prevGroups = findGroups(fnInstance(prev, key))
       // TODO: consider using diff to only update groups that changed
@@ -60,24 +59,43 @@ export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
           currentValue.remove(prevGroup)
+          remove(prevSubCollection, prevGroup)
         } else {
           currentValue.set(prevGroup, nextSubCollection)
+          update({ prev: prevSubCollection, next: nextSubCollection }, group)
         }
       })
       const nextGroups = findGroups(fnInstance(next, key))
       nextGroups.forEach(nextGroup => {
-        currentValue
-          .update(nextGroup, (subCollection) => (subCollection || Map()).set(key,next))
+        const prevSubCollection = currentValue.get(nextGroup)
+        const nextSubCollection = (prevSubCollection || Map()).set(key, next)
+        currentValue.set(nextGroup, nextSubCollection)
+        if(!prevSubCollection) {
+          add(nextSubCollection, nextGroup)
+        } else {
+          update({ prev: prevSubCollection, next: nextSubCollection }, nextGroup)
+        }
       })
-    })
-    const result = currentValue.asImmutable()
-    currentValue = result.asMutable()
-    return result
-  }
+    },
+  })
   const specialize = () => {
-    return group(fn)
+    return groupDiffProcessor(fn)
   }
-  apply.specialize = specialize
 
-  return apply
+  return { 
+    diffProcessor,
+    specialize,
+  }
+}
+
+interface GroupKeyFunction<K, V, GK> {
+  (value: V, key: K): Iterable<GK, GK> | GK,
+  specialize?: () => GroupKeyFunction<K, V, GK>
+}
+interface GroupOperation<K, V, GK> {
+  (map: Map<K, V>): Map<GK, Map<K, V>>,
+  specialize: () => GroupOperation<K, V, GK>
+}
+export function group<K, V, GK>(fn: GroupKeyFunction<K, V, GK>): GroupOperation<K, V, GK> {
+  return wrapDiffProcessor(groupDiffProcessor(fn))
 }

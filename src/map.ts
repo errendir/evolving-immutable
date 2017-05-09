@@ -1,7 +1,42 @@
 import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
+import { wrapDiffProcessor } from './wrapDiffProcessor'
+
+export const mapDiffProcessor = (fn, { overSet=false } = {}) => {
+  return overSet ? mapOverSetDiffProcessor(fn) : mapOverMapDiffProcessor(fn)
+}
+
 export const map = (fn, { overSet=false } = {}) => {
   return overSet ? mapOverSet(fn) : mapOverMap(fn)
+}
+
+export function mapOverMapDiffProcessor(fn) { 
+  let currentFnInstances = Map<any, any>().asMutable()
+  const diffProcessor = ({ remove, add, update }) => {
+    return {
+      remove: (value, key) => {
+        currentFnInstances.remove(key)
+        remove(value, key)
+      },
+      add: (value, key) => {
+        const mapper = fn.specialize ? fn.specialize() : fn
+        currentFnInstances.set(key, mapper)
+        add(mapper(value, key), key)
+      },
+      update: ({prev, next}, key) => {
+        const mapper = currentFnInstances.get(key)
+        update({ prev: mapper(prev, key), next: mapper(next, key) }, key)
+      }
+    }
+  }
+  const specialize = () => {
+    return mapOverMapDiffProcessor(fn)
+  }
+
+  return { 
+    diffProcessor,
+    specialize,
+  }
 }
 
 interface MapOverMapMapper<K, VA, VB> {
@@ -13,68 +48,35 @@ interface MapOverMapOperation<K, VA, VB> {
   specialize: () => MapOverMapOperation<K, VA, VB>
 }
 export function mapOverMap<K, VA, VB>(fn: MapOverMapMapper<K, VA, VB>) : MapOverMapOperation<K, VA, VB> {
-  let currentFnInstances = Map<any, any>().asMutable()
-  let currentValue = Map()
-  let currentArgument = Map()
-  const apply: any = (newArgument) => {
-    const argumentDiff = newArgument.diffFrom(currentArgument)
-    currentArgument = newArgument
+  return wrapDiffProcessor(mapOverMapDiffProcessor(fn))
+}
 
-    let newValue = currentValue
-    argumentDiff.removed.forEach((value, key) => {
-      currentFnInstances.remove(key)
-      newValue = newValue.remove(key)
-    })
-    argumentDiff.added.forEach((value, key) => {
-      const mapper = fn.specialize ? fn.specialize() : fn
-      currentFnInstances.set(key, mapper)
-      newValue = newValue.set(key, mapper(value, key))
-    })
-    argumentDiff.updated.forEach(({prev, next}, key) => {
-      const mapper = currentFnInstances.get(key)
-      newValue = newValue.set(key, mapper(next, key))
-    })
-    currentValue = newValue
-    return newValue
+export function mapOverSetDiffProcessor(fn) { 
+  let currentFnInstances = Map<any, any>().asMutable()
+  const diffProcessor = ({ remove, add }) => {
+    return {
+      remove: (value) => {
+        const mapper = currentFnInstances.get(value)
+        currentFnInstances.remove(value)
+        remove(mapper(value))
+      },
+      add: (value) => {
+        const mapper = fn.specialize ? fn.specialize() : fn
+        currentFnInstances.set(value, mapper)
+        add(mapper(value))
+      }
+    }
   }
   const specialize = () => {
-    return mapOverMap(fn)
+    return mapOverSetDiffProcessor(fn)
   }
-  apply.specialize = specialize
 
-  return apply
+  return {
+    diffProcessor,
+    specialize,
+  }
 }
 
 export const mapOverSet = (fn) => {
-  let currentFnInstances = Map<any, any>().asMutable()
-  let currentValue = Set()
-  let currentArgument = Set()
-  const apply: any = (newArgument) => {
-    const argumentDiff = newArgument.diffFrom(currentArgument)
-    currentArgument = newArgument
-
-    let newValue = currentValue
-    argumentDiff.removed.forEach(value => {
-      const mapper = currentFnInstances.get(value)
-      currentFnInstances.remove(value)
-      newValue = newValue.remove(mapper(value))
-    })
-    argumentDiff.added.forEach(value => {
-      const mapper = fn.specialize ? fn.specialize() : fn
-      currentFnInstances.set(value, mapper)
-      newValue = newValue.add(mapper(value))
-    })
-    argumentDiff.updated && argumentDiff.updated.forEach(({prev, next}, key) => {
-      const mapper = currentFnInstances.get(key)
-      newValue = newValue.remove(mapper(prev)).add(mapper(next))
-    })
-    currentValue = newValue
-    return newValue
-  }
-  const specialize = () => {
-    return mapOverSet(fn)
-  }
-  apply.specialize = specialize
-
-  return apply
+  return wrapDiffProcessor(mapOverSetDiffProcessor(fn), { inSet: true, outSet: true })
 }
