@@ -62,11 +62,11 @@ export function groupDiffProcessor(fn) {
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
           currentValue.remove(prevGroup)
-          remove(prevSubCollection, prevGroup)
+          remove(prevSubCollection, prevGroup, key)
         } else {
           currentValue.set(prevGroup, nextSubCollection)
           //update({ prev: prevSubCollection, next: nextSubCollection }, group)
-          remove(prev, group, key)
+          remove(prev, prevGroup, key)
         }
       })
       const nextGroups = findGroups(fnInstance(next, key))
@@ -76,10 +76,10 @@ export function groupDiffProcessor(fn) {
         currentValue.set(nextGroup, nextSubCollection)
         if(!prevSubCollection) {
           //add(nextSubCollection, nextGroup)
-          add(next, group, key)
+          add(next, nextGroup, key)
         } else {
           //update({ prev: prevSubCollection, next: nextSubCollection }, nextGroup)
-          add(next, group, key)
+          add(next, nextGroup, key)
         }
       })
     },
