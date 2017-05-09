@@ -31,7 +31,8 @@ export function groupDiffProcessor(fn) {
           remove(prevSubCollection, group)
         } else {
           currentValue.set(group, nextSubCollection)
-          update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          //update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          remove(value, group, key)
         }
       })
     },
@@ -41,12 +42,14 @@ export function groupDiffProcessor(fn) {
       currentFnInstances.set(key, fnInstance)
       groups.forEach(group => {
         const prevSubCollection = currentValue.get(group)
-        const nextSubCollection = (prevSubCollection || Map()).set(key,value)
+        const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key,value)
         currentValue.set(group, nextSubCollection)
         if(!prevSubCollection) {
-          add(nextSubCollection, group)
+          //add(nextSubCollection, group)
+          add(value, group, key)
         } else {
-          update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          //update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          add(value, group, key)
         }
       })
     },
@@ -62,18 +65,21 @@ export function groupDiffProcessor(fn) {
           remove(prevSubCollection, prevGroup)
         } else {
           currentValue.set(prevGroup, nextSubCollection)
-          update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          //update({ prev: prevSubCollection, next: nextSubCollection }, group)
+          remove(prev, group, key)
         }
       })
       const nextGroups = findGroups(fnInstance(next, key))
       nextGroups.forEach(nextGroup => {
         const prevSubCollection = currentValue.get(nextGroup)
-        const nextSubCollection = (prevSubCollection || Map()).set(key, next)
+        const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key, next)
         currentValue.set(nextGroup, nextSubCollection)
         if(!prevSubCollection) {
-          add(nextSubCollection, nextGroup)
+          //add(nextSubCollection, nextGroup)
+          add(next, group, key)
         } else {
-          update({ prev: prevSubCollection, next: nextSubCollection }, nextGroup)
+          //update({ prev: prevSubCollection, next: nextSubCollection }, nextGroup)
+          add(next, group, key)
         }
       })
     },

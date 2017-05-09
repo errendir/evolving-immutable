@@ -2,35 +2,42 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
+import { createMutableMap, createMutableSet } from './mutableContainers'
+
 export const toSetDiffProcessor = () => {
-  let valueToKeys = Map<any,Set<any>>().asMutable()
+  let valueToKeys = createMutableMap()
 
-  const removeKeyValue = (remove) => (value, key) => {
-    valueToKeys.update(value, keys => keys.remove(key))
-    if(valueToKeys.get(value).isEmpty()) {
-      valueToKeys.remove(value)
-      remove(value)
+  const diffProcessor = ({ remove, add, update }) => {
+    const removeKeyValue = (value, key) => {
+      const keys = valueToKeys.get(value)
+      keys.delete(key)
+      if(keys.size === 0) {
+        valueToKeys.delete(value)
+        remove(value)
+      }
+    }
+    const addKeyValue = (value, key) => {
+      const keys = valueToKeys.get(value)
+      if(!keys) {
+        valueToKeys.set(value, createMutableSet().add(key))
+        add(value)
+      } else {
+        keys.add(key)
+      }
+    }
+    return {
+      remove: (value, key) => {
+        removeKeyValue(value, key)
+      },
+      add: (value, key) => {
+        addKeyValue(value, key)
+      },
+      update: ({prev, next}, key) => {
+        removeKeyValue(prev, key)
+        addKeyValue(next, key)
+      },
     }
   }
-  const addKeyValue = (add) => (value, key) => {
-    valueToKeys.update(value, keys => (keys || Set()).add(key))
-    if(valueToKeys.get(value).size === 1) {
-      add(value)
-    }
-  }
-
-  const diffProcessor = ({ remove, add, update }) => ({
-    remove: (value, key) => {
-      removeKeyValue(remove)(value, key)
-    },
-    add: (value, key) => {
-      addKeyValue(add)(value, key)
-    },
-    update: ({prev, next}, key) => {
-      removeKeyValue(remove)(prev, key)
-      addKeyValue(add)(next, key)
-    },
-  })
 
   const specialize = () => {
     return toSetDiffProcessor()
@@ -48,7 +55,6 @@ export const toSet = () => {
 
 export const toMapDiffProcessor = (keyFn) => {
   let currentValue = Map()
-  let currentArgument = Set()
   const diffProcessor = ({ remove, add, update }) => ({
     remove: value => {
       const key = keyFn(value)
@@ -58,12 +64,6 @@ export const toMapDiffProcessor = (keyFn) => {
       const key = keyFn(value)
       add(value, key)
     },
-    update: ({prev, next}) => {
-      const prevKey = keyFn(prev)
-      const nextKey = keyFn(next)
-      remove(prev, prevKey)
-      add(next, nextKey)
-    }
   })
 
   const specialize = () => {

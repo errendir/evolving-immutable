@@ -3,7 +3,7 @@ import { Set, Map } from 'immutable'
 import {
   startChain,
   memoizeForSlots, memoizeForRecentArguments,
-  semiPureFunction, addStepFunctions,
+  semiPureFunction, composeFunctions,
   unionMap, unionSet, flattenMap,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
@@ -167,13 +167,26 @@ describe('startChain', () => {
     const obj1 = { a: 11 }
     console.assert(chain(obj1) === chain(obj1))
   })
+
+  it('correctly chains skips over the intermediate object creation when possible', () => {
+    const chain = startChain()
+      .addStep((data) => data)
+      .addMapStep(value => value+1)
+      .addGroupStep(value => value % 3)
+      .endChain()
+
+    const map1 = Map({ a: 11, b: 12, c: 13 })
+    console.assert(chain(map1).get(0).has('a'))
+    console.assert(chain(map1).get(1).has('b'))
+    console.assert(chain(map1).get(2).has('c'))
+  })
 })
 
 describe('memoizeForSlots', () => {
   it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {
     const getTransformedObject = memoizeForSlots({ 
       computeSlot: (allObjects, objectId) => objectId,
-      executeFunction: addStepFunctions(
+      executeFunction: composeFunctions(
         (allObjects, objectId) => allObjects.get(objectId),
         memoizeForRecentArguments(object => Math.random(), { historyLength: 1 })
       )
@@ -243,13 +256,13 @@ describe('memoizeForRecentArguments', () => {
   })
 })
 
-describe('addStepFunctions', () => {
-  it('preserves the internal memoization of all the addStepd functions', () => {
+describe('composeFunctions', () => {
+  it('preserves the internal memoization of all the addStep functions', () => {
     const appendOneMoreThing = (map) => map.set('one-more-thing', { value: 11 })
     let nextValue = 0
     const extractTheFake = map((object) => nextValue++)
 
-    const process1 = addStepFunctions(appendOneMoreThing, extractTheFake)
+    const process1 = composeFunctions(appendOneMoreThing, extractTheFake)
 
     const map1 = Map({ a: { value: 12 }, b: { value: 13 }})
 
@@ -262,7 +275,7 @@ describe('addStepFunctions', () => {
   })
 
   it('allows multiple arguments to be passed into the first addStepd function', () => {
-    const operation = addStepFunctions(
+    const operation = composeFunctions(
       (allObjectsById, objectId) => allObjectsById.get(objectId),
       (object) => object
     )
@@ -291,10 +304,10 @@ describe('filter', () => {
 
     const lowerThan10 = filter(element => element.value < 10)
 
-    lowerThan10(map1)
-    const result = lowerThan10(map2)
-    console.assert(result.keySeq().toSet().equals(Set(["c"])))
-    console.assert(result.get("c") === map2.get("c"))
+    const result1 = lowerThan10(map1)
+    const result2 = lowerThan10(map2)
+    console.assert(result2.keySeq().toSet().equals(Set(["c"])))
+    console.assert(result2.get("c") === map2.get("c"))
   })
 
   it('updates the result by removing any entry that predicate no longer accepts after argument change', () => {

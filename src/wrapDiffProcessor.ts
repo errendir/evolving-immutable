@@ -12,6 +12,12 @@ export const applyToMutableMapDiffProcessor = (getMap) => ({
   update: ({prev, next}, key) => getMap().set(key, next),
 })
 
+export const applyToDeepMutableMapDiffProcessor = (getMap) => ({
+  remove: (value, ...keys) => getMap().deleteIn(keys),
+  add: (value, ...keys) => getMap().setIn(keys, value),
+  update: ({prev, next}, ...keys) => getMap().setIn(keys, next),
+})
+
 export const applyToSetDiffProcessor = (getSet, replaceSet) => ({
   remove: (value) => replaceSet(getSet().remove(value)),
   add: (value) => replaceSet(getSet().add(value))
@@ -30,11 +36,11 @@ export function wrapDiffProcessor(diffProcessorFactory, { inSet=false, outSet=fa
 
   const outDiffProcessor = outSet
     ? applyToMutableSetDiffProcessor(() => currentValue)
-    : applyToMutableMapDiffProcessor(() => currentValue)
+    : applyToDeepMutableMapDiffProcessor(() => currentValue)
   const inDiffProcessor = diffProcessor(outDiffProcessor)
 
   const apply: any = (newArgument) => {
-    const argumentDiff = newArgument.diffFromCallbacks(
+    newArgument.diffFromCallbacks(
       currentArgument,
       inDiffProcessor,
     )
@@ -46,6 +52,41 @@ export function wrapDiffProcessor(diffProcessorFactory, { inSet=false, outSet=fa
   }
   const specialize = () => {
     return wrapDiffProcessor(diffProcessorFactory.specialize(), { inSet, outSet })
+  }
+  apply.specialize = specialize
+
+  return apply
+}
+
+export function wrapDualDiffProcessor(diffProcessorFactory) {
+  const diffProcessor = diffProcessorFactory.diffProcessor
+
+  let currentLeftArgument = Map()
+  let currentRightArgument = Map()
+  let currentValue = Map().asMutable()
+
+  const outDiffProcessor = applyToMutableMapDiffProcessor(() => currentValue)
+  const inDiffProcessor = diffProcessor(outDiffProcessor)
+
+  const apply: any = (newLeftArgument, newRightArgument) => {
+    newLeftArgument.diffFromCallbacks(
+      currentLeftArgument,
+      inDiffProcessor[0],
+    )
+    currentLeftArgument = newLeftArgument
+
+    newRightArgument.diffFromCallbacks(
+      currentRightArgument,
+      inDiffProcessor[1],
+    )
+    currentRightArgument = newRightArgument
+
+    const finalValue = currentValue.asImmutable()
+    currentValue = finalValue.asMutable()
+    return finalValue
+  }
+  const specialize = () => {
+    return wrapDualDiffProcessor(diffProcessorFactory.specialize())
   }
   apply.specialize = specialize
 

@@ -17,7 +17,7 @@ const specializeOperation = (operation) => {
 
 // TODO: implement the `claim` method on all Operations so that the unnecessary specializations 
 // don't have to be done when Operations are passed to chains or `addStepFunctions`
-function _startChain(operations, allowedInsideAChain=false) {
+function _startChain(operations, allowedInsideAChain=false, { logTimeline, name }) {
   if(insideOfTheChainExecution && !allowedInsideAChain) {
     throw new Error('Do not create a chain as part of any chain execution')
   }
@@ -26,6 +26,10 @@ function _startChain(operations, allowedInsideAChain=false) {
   const previousPartialValues = []
 
   const apply: any = (...args) => {
+    if(logTimeline) {
+      performance.mark(`${name}_start`)
+    }
+
     insideOfTheChainExecution = true
     let finalResult, error, errorWasThrown = false
     try {
@@ -79,7 +83,12 @@ function _startChain(operations, allowedInsideAChain=false) {
 
     if(errorWasThrown === true) {
       throw error
-    } 
+    }
+
+    if(logTimeline) {
+      performance.mark(`${name}_end`)
+      performance.measure(`${name}`, `${name}_start`, `${name}_end`)
+    }
     return finalResult
   }
   const specialize = () => {
@@ -87,7 +96,7 @@ function _startChain(operations, allowedInsideAChain=false) {
   apply.specialize = () => {
     const newOperations = operations
       .map(specializeOperation)
-    return _startChain(newOperations, true)
+    return _startChain(newOperations, true, { logTimeline, name })
       .endChain()
   }
 
@@ -110,7 +119,7 @@ function _startChain(operations, allowedInsideAChain=false) {
           .slice(0, operations.length-1)
           .map(specializeOperation)
           .push(operation)
-        return _startChain(operations)
+        return _startChain(operations, false, { logTimeline, name })
       }
     }
     const _addStep = (operation, needsToBeSpecialized=true) => {
@@ -141,7 +150,7 @@ function _startChain(operations, allowedInsideAChain=false) {
           return makeExtendableChain(childChainConfig)
         }
       }
-      childChain = _startChain([], false)
+      childChain = _startChain([], false, { logTimeline, name: name + '_value_memed' })
       return makeExtendableChain({ memoizationType: 'value', historyLength, childChain })
     }
 
@@ -154,7 +163,7 @@ function _startChain(operations, allowedInsideAChain=false) {
           return makeExtendableChain(childChainConfig)
         }
       }
-      childChain = _startChain([], false)
+      childChain = _startChain([], false, { logTimeline, name: name + '_object_memed' })
       return makeExtendableChain({ memoizationType: 'object', historyLength, childChain })
     }
 
@@ -295,6 +304,6 @@ function _startChain(operations, allowedInsideAChain=false) {
   return makeExtendableChain()
 }
 
-export function startChain() {
-  return _startChain([], false)
+export function startChain({ logTimeline=false, name='aChain' }={}) {
+  return _startChain([], false, { logTimeline, name })
 }

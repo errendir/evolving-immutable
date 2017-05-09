@@ -2,6 +2,10 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { semiPureFunction } from './functions'
 
+import { wrapDualDiffProcessor } from './wrapDiffProcessor'
+
+import { createMutableMap } from './mutableContainers'
+
 export function safeUnionMap<K,V>() {
   return semiPureFunction({
     createMemory: () => ({
@@ -76,66 +80,74 @@ export function unionSet<E>() : UnionSetOperation<E> {
   return apply
 }
 
+export const unionMapDiffProcessor = () => {
+  let presentLeft = createMutableMap()
+  let presentRight = createMutableMap()
+
+  const diffProcessor = ({ remove, add, update }) => ([
+    {
+      remove: (leftValue, key) => {
+        presentLeft.delete(key)
+        const rightValue = presentRight.get(key)
+        if(rightValue === undefined) {
+          remove(leftValue, key)
+        }
+      },
+      add: (leftValue, key) => {
+        presentLeft.set(key, leftValue)
+        const rightValue = presentRight.get(key)
+        if(rightValue === undefined) {
+          add(leftValue, key)
+        }
+      },
+      update: (prevNext, key) => {
+        presentLeft.set(key, prevNext.next)
+        const rightValue = presentRight.get(key)
+        if(rightValue === undefined) {
+          update(prevNext, key)
+        }
+      },
+    },
+    {
+      remove: (rightValue, key) => {
+        presentRight.delete(key)
+        const leftValue = presentLeft.get(key)
+        if(leftValue === undefined) {
+          remove(rightValue, key)
+        } else {
+          update({ prev: rightValue, next: leftValue }, key)
+        }
+      },
+      add: (rightValue, key) => {
+        presentRight.set(key, rightValue)
+        const leftValue = presentLeft.get(key)
+        if(leftValue === undefined) {
+          add(rightValue, key)
+        } else {
+          update({ prev: leftValue, next: rightValue }, key)
+        }
+      },
+      update: (prevNext, key) => {
+        presentRight.set(key, prevNext.next)
+        update(prevNext, key)
+      },
+    }
+  ])
+
+  const specialize = () => {
+    return unionMapDiffProcessor()
+  }
+
+  return {
+    diffProcessor,
+    specialize,
+  }
+}
+
 interface UnionMapOperation<K, V> {
   (leftMap: Map<K, V>, rightMap: Map<K, V>): Map<K, V>,
   specialize: () => UnionMapOperation<K, V>
 }
 export function unionMap<K, V>() : UnionMapOperation<K,V> {
-  let currentValue = Map<any,any>()
-  let currentLeftArgument = Map()
-  let currentRightArgument = Map()
-
-  const apply: any = (newLeftArgument, newRightArgument) => {
-    const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
-    const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
-
-    let newValue = currentValue
-    leftArgumentDiff.removed.forEach((leftValue, key) => {
-      const rightValue = currentRightArgument.get(key)
-      if(rightValue === undefined) {
-        newValue = newValue.remove(key)
-      } else {
-        newValue = newValue.set(key, rightValue)
-      }
-    })
-    leftArgumentDiff.added.forEach((leftValue, key) => {
-      const rightValue = currentRightArgument.get(key)
-      if(rightValue === undefined) {
-        newValue = newValue.set(key, leftValue)
-      }
-    })
-    leftArgumentDiff.updated.forEach(({prev, next}, key) => {
-      const rightValue = currentRightArgument.get(key)
-      if(rightValue === undefined) {
-        newValue = newValue.set(key, next)
-      }
-    })
-
-    rightArgumentDiff.removed.forEach((rightValue, key) => {
-      const leftValue = newLeftArgument.get(key)
-      if(leftValue === undefined) {
-        newValue = newValue.remove(key)
-      } else {
-        newValue = newValue.set(key, leftValue)
-      }
-    })
-    rightArgumentDiff.added.forEach((rightValue, key) => {
-      newValue = newValue.set(key, rightValue)
-    })
-    rightArgumentDiff.updated.forEach(({prev, next}, key) => {
-      newValue = newValue.set(key, next)
-    })
-
-    currentValue = newValue
-    currentLeftArgument = newLeftArgument
-    currentRightArgument = newRightArgument
-
-    return newValue
-  }
-  const specialize = () => {
-    return unionMap()
-  }
-  apply.specialize = specialize
-
-  return apply
+  return wrapDualDiffProcessor(unionMapDiffProcessor())
 }

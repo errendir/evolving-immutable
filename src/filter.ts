@@ -2,13 +2,15 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
+import { createMutableSet, createMutableMap } from './mutableContainers'
+
 export const filterDiffProcessor = (fn, rememberPresent = true) => {
-  let currentFnInstances = Map<any, any>().asMutable()
-  let presentKeys = Set<any>().asMutable()
+  let currentFnInstances = createMutableMap()
+  let presentKeys = createMutableSet()
   const diffProcessor = ({ remove, add, update }) => {
     return {
       remove: (value, key) => {
-        currentFnInstances.remove(key)
+        currentFnInstances.delete(key)
         if(presentKeys.has(key)) {
           presentKeys.delete(key)
           remove(value, key)

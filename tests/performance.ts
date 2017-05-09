@@ -39,7 +39,7 @@ const debounce = (likesById) => Map(likesById.entrySeq().toJS())
 
 console.log('Testing perf of filter')
 const testFilterSpeed = () => {
-  const likesById = generateLikes(10000)
+  const likesById = generateLikes(100000)
 
   const specialUsersFilter_ev = EvolvingImmutable.filter(like => like.userId % 3 === 0)
   const specialUsersFilter_na = NaiveImmutable.filter(like => like.userId % 3 === 0)
@@ -49,7 +49,8 @@ const testFilterSpeed = () => {
   console.timeEnd('ev: filter one map')
 
   console.time('ev: diff one map')
-  likesById.diffFrom(Map())
+  const lBId: any = likesById
+  lBId.diffFrom(Map())
   console.timeEnd('ev: diff one map')
 
   console.time('na: filter one map')
