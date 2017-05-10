@@ -2,7 +2,7 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
-import { createMutableMap, createMutableSet } from './mutableContainers'
+import { createMutableMap, createMutableSet, isMutableSet } from './mutableContainers'
 
 export const toSetDiffProcessor = ({ assumeUniqueKeys=false } = {}) => {
   let valueToKeys
@@ -14,7 +14,7 @@ export const toSetDiffProcessor = ({ assumeUniqueKeys=false } = {}) => {
     const removeKeyValue = (value, key) => {
       if(!assumeUniqueKeys) {
         const keys = valueToKeys.get(value)
-        const isSet = Set.prototype.isPrototypeOf(keys)
+        const isSet = isMutableSet(keys)
         if(isSet) {
           keys.delete(key)
         }
@@ -33,14 +33,13 @@ export const toSetDiffProcessor = ({ assumeUniqueKeys=false } = {}) => {
           valueToKeys.set(value, key)
           add(value)
         } else {
-          if(Set.prototype.isPrototypeOf(keys)) {
+          if(isMutableSet(keys)) {
             keys.add(key)
           } else {
             valueToKeys.set(value, createMutableSet().add(keys).add(key))
           }
         }
       } else {
-        //console.log('adding - set')
         add(value, key)
       }
     }
