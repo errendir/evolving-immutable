@@ -179,12 +179,14 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
     // const addFilterStep = wrapSimpleOperationCreator(EvImmInternals.filterDiffProcessor)
     // const addToSetStep = wrapSimpleOperationCreator(EvImmInternals.toSetDiffProcessor)
     // const addToMapStep = wrapSimpleOperationCreator(EvImmInternals.toMapDiffProcessor)
+    // const addReindexMapStep = wrapSimpleOperationCreator(EvImmInternals.reindexMapDiffProcessor)
 
     const addMapStep = wrapSimpleOperationCreator(EvImmInternals.map)
     const addGroupStep = wrapSimpleOperationCreator(EvImmInternals.group)
     const addFilterStep = wrapSimpleOperationCreator(EvImmInternals.filter)
     const addToSetStep = wrapSimpleOperationCreator(EvImmInternals.toSet)
     const addToMapStep = wrapSimpleOperationCreator(EvImmInternals.toMap)
+    const addReindexMapStep = wrapSimpleOperationCreator(EvImmInternals.reindexMap)
 
     const mapManyToOne = (operation, ...extractors) => {
       return _addStep(
@@ -287,12 +289,14 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
       mapManyToOne,
       mapOneToMany,
       // All the transformation steps - START
-      addLeftJoinStep,
       addMapStep,
       addGroupStep,
       addFilterStep,
       addToSetStep,
       addToMapStep,
+      addReindexMapStep,
+
+      addLeftJoinStep,
       addZipStep,
       addSafeUnionSetStep,
       // All the transformation steps - END

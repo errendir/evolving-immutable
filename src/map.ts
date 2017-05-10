@@ -2,6 +2,8 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
+import { createMutableMap } from './mutableContainers'
+
 export const mapDiffProcessor = (fn, { overSet=false } = {}) => {
   return overSet ? mapOverSetDiffProcessor(fn) : mapOverMapDiffProcessor(fn)
 }
@@ -10,21 +12,37 @@ export const map = (fn, { overSet=false } = {}) => {
   return overSet ? mapOverSet(fn) : mapOverMap(fn)
 }
 
-export function mapOverMapDiffProcessor(fn) { 
-  let currentFnInstances = Map<any, any>().asMutable()
+export function mapOverMapDiffProcessor(fn) {
+  const shouldSpecializeFn = !!fn.specialize
+  let currentFnInstances
+  if(shouldSpecializeFn) {
+    currentFnInstances = createMutableMap()
+  }
   const diffProcessor = ({ remove, add, update }) => {
     return {
       remove: (value, key) => {
-        currentFnInstances.remove(key)
+        if(shouldSpecializeFn) {
+          currentFnInstances.delete(key)
+        }
         remove(value, key)
       },
       add: (value, key) => {
-        const mapper = fn.specialize ? fn.specialize() : fn
-        currentFnInstances.set(key, mapper)
+        let mapper
+        if(shouldSpecializeFn) {
+          mapper = fn.specialize()
+          currentFnInstances.set(key, mapper)
+        } else {
+          mapper = fn
+        }
         add(mapper(value, key), key)
       },
       update: ({prev, next}, key) => {
-        const mapper = currentFnInstances.get(key)
+        let mapper
+        if(shouldSpecializeFn) {
+          mapper = currentFnInstances.get(key)
+        } else {
+          mapper = fn
+        }
         update({ prev: mapper(prev, key), next: mapper(next, key) }, key)
       }
     }
@@ -51,13 +69,14 @@ export function mapOverMap<K, VA, VB>(fn: MapOverMapMapper<K, VA, VB>) : MapOver
   return wrapDiffProcessor(mapOverMapDiffProcessor(fn))
 }
 
+// TODO: Make sure mapOverSet correctly handles duplicates in the dataset post-mapping
 export function mapOverSetDiffProcessor(fn) { 
-  let currentFnInstances = Map<any, any>().asMutable()
+  let currentFnInstances = createMutableMap()
   const diffProcessor = ({ remove, add }) => {
     return {
       remove: (value) => {
         const mapper = currentFnInstances.get(value)
-        currentFnInstances.remove(value)
+        currentFnInstances.delete(value)
         remove(mapper(value))
       },
       add: (value) => {

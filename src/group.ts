@@ -2,9 +2,11 @@ import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
+import { createMutableMap } from './mutableContainers'
+
 export function groupDiffProcessor(fn) { 
-  let currentFnInstances = Map<any, any>().asMutable()
-  let currentValue = Map<any, any>().asMutable()
+  let currentFnInstances = createMutableMap()
+  let currentValue = createMutableMap()
 
   const groupsSentinel = []
   const findGroups = (group) => {
@@ -22,12 +24,12 @@ export function groupDiffProcessor(fn) {
     remove: (value, key) => {
       const fnInstance = currentFnInstances.get(key)
       const groups = findGroups(fnInstance(value, key))
-      currentFnInstances.remove(key)
+      currentFnInstances.delete(key)
       groups.forEach(group => {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
-          currentValue.remove(group)
+          currentValue.delete(group)
           remove(prevSubCollection, group)
         } else {
           currentValue.set(group, nextSubCollection)
@@ -61,7 +63,7 @@ export function groupDiffProcessor(fn) {
         const prevSubCollection = currentValue.get(prevGroup)
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
-          currentValue.remove(prevGroup)
+          currentValue.delete(prevGroup)
           remove(prevSubCollection, prevGroup)
         } else {
           currentValue.set(prevGroup, nextSubCollection)

@@ -6,17 +6,60 @@ const emptySet = Set()
 const emptyIterable = []
 
 export const leftJoinDiffProcessor = () => {
-  let currentMapLeftToRightKeysInstances = Map<any, any>().asMutable()
-  let currentAttachInstances = Map<any, any>().asMutable()
-  let rightKeyToLeftKeys = Map<any, Set<any>>().asMutable()
-  let leftKeyToMapOfRight = Map<any, Map<any, any>>().asMutable()
+  let currentMapLeftToRightKeysInstances = createMutableMap()
+  let currentAttachInstances = createMutableMap()
+  let rightKeyToLeftKeys = createMutableMap()
+  let leftKeyToMapOfRight = createMutableMap()
+
+  let rightValueByKey = createMutableMap()
+  let leftValueByKey = createMutableMap()
 
   const diffProcessor = ({ remove, add, update }) => ([
     {
 
     },
     {
-
+      remove: (rightValue, rightKey) => {
+        rightValueByKey.delete(rightKey)
+        const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
+        rightKeyToLeftKeys.delete(rightKey)
+        allLeftKeys.forEach(leftKey => {
+          const mapOfRight = leftKeyToMapOfRight.get(leftKey)
+          mapOfRight.delete(rightKey)
+          const attachInstance = currentAttachInstances.get(leftKey)
+          update({
+            next: attachInstance(leftValueByKey.get(leftKey), mapOfRight, leftKey)
+          }, leftKey)
+        })
+      },
+      add: (rightValue, rightKey) => {
+        rightValueByKey.set(rightKey, rightValue)
+        const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
+        allLeftKeys.forEach(leftKey => {
+          let mapOfRight = leftKeyToMapOfRight.get(leftKey)
+          if(!mapOfRight) {
+            mapOfRight = createMutableMap()
+            leftKeyToMapOfRight.set(leftKey, mapOfRight)
+          }
+          mapOfRight.set(rightKey, rightValue)
+          const attachInstance = currentAttachInstances.get(leftKey)
+          update({
+            next: attachInstance(leftValueByKey.get(leftKey), mapOfRight, leftKey)
+          }, leftKey)
+        })
+      },
+      update: ({ prev, next }, rightKey) => {
+        rightValueByKey.set(rightKey, next)
+        const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
+        allLeftKeys.forEach(leftKey => {
+          const mapOfRight = leftKeyToMapOfRight.get(leftKey)
+          mapOfRight.set(rightKey, next)
+          const attachInstance = currentAttachInstances.get(leftKey)
+          update({
+            next: attachInstance(leftValueByKey.get(leftKey), mapOfRight, leftKey)
+          }, leftKey)
+        })
+      }
     }
   ])
 
@@ -34,9 +77,9 @@ interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
   (leftValue: VL, leftKey?: KL): Set<KR>,
   specialize?: () => LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>
 }
-interface LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO> {
-  (leftValue: VL, mapOfRightValues: any/*Map<KR, VR>*/): VO,
-  specialize?: () => LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO>
+interface LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO> {
+  (leftValue: VL, mapOfRightValues: any/*Map<KR, VR>*/, leftKey: KL): VO,
+  specialize?: () => LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO>
 }
 interface LeftJoinOperation<KL, VL, KR, VR, VO> {
   (leftMap: Map<KL, VL>, rightMap: Map<KR, VR>) : Map<KL, VO>,
@@ -44,7 +87,7 @@ interface LeftJoinOperation<KL, VL, KR, VR, VO> {
 }
 export function leftJoin<KL, VL, KR, VR, VO> (
   mapLeftToSetOfRightKeys: LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>,
-  attachLeftWithMapOfRight: LeftJoinAttachLeftWithMapOfRight<VL, KR, VR, VO>
+  attachLeftWithMapOfRight: LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO>
 ): LeftJoinOperation<KL, VL, KR, VR, VO> {
   let currentValue = Map<any,any>().asMutable()
   let currentLeftArgument = Map()
@@ -55,6 +98,8 @@ export function leftJoin<KL, VL, KR, VR, VO> (
   let rightKeyToLeftKeys = createMutableMap()
   let leftKeyToMapOfRight = createMutableMap()
 
+  let rightValueByKey = createMutableMap()
+
   const apply: any = (newLeftArgument, newRightArgument) => {
     const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
     const rightArgumentDiff = newRightArgument.diffFrom(currentRightArgument)
@@ -62,6 +107,7 @@ export function leftJoin<KL, VL, KR, VR, VO> (
     let newValue = currentValue
 
     rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
+      rightValueByKey.delete(rightKey)
       const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
       rightKeyToLeftKeys.delete(rightKey)
       allLeftKeys.forEach(leftKey => {
@@ -69,29 +115,34 @@ export function leftJoin<KL, VL, KR, VR, VO> (
         mapOfRight.delete(rightKey)
         const attachInstance = currentAttachInstances.get(leftKey)
         // Use the currentLeftArgument, since the leftElements are updated in the last three loops
-        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
+        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
+      rightValueByKey.set(rightKey, rightValue)
       const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
       allLeftKeys.forEach(leftKey => {
-        const mapOfRight = leftKeyToMapOfRight.get(leftKey)
+        let mapOfRight = leftKeyToMapOfRight.get(leftKey)
         if(!mapOfRight) {
-          leftKeyToMapOfRight.set(leftKey, createMutableMap().set(rightKey, rightValue))
-        } else {
-          mapOfRight.set(rightKey, rightValue)
+          mapOfRight = createMutableMap()
+          leftKeyToMapOfRight.set(leftKey, mapOfRight)
         }
+        mapOfRight.set(rightKey, rightValue)
+
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
+        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
     })
     rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
+      //console.log('update', { prev, next }, rightKey, next.diffFrom && next.diffFrom(prev))
+      rightValueByKey.set(rightKey, next)
       const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable
       allLeftKeys.forEach(leftKey => {
         const mapOfRight = leftKeyToMapOfRight.get(leftKey)
         mapOfRight.set(rightKey, next)
         const attachInstance = currentAttachInstances.get(leftKey)
-        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), leftKeyToMapOfRight.get(leftKey)))
+        //console.log('attaching', currentLeftArgument.get(leftKey), 'with', Array.from(mapOfRight))
+        newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
     })
 
@@ -120,12 +171,12 @@ export function leftJoin<KL, VL, KR, VR, VO> (
         } else {
           leftKeys.add(key)
         }
-        mapOfRight.set(rightKey, newRightArgument.get(rightKey))
+        mapOfRight.set(rightKey, rightValueByKey.get(rightKey))
       })
       leftKeyToMapOfRight.set(key, mapOfRight)
       currentMapLeftToRightKeysInstances.set(key, mapLeftToSetOfRightKeysInstance)
       currentAttachInstances.set(key, attachInstance)
-      newValue.set(key, attachInstance(value, mapOfRight))
+      newValue.set(key, attachInstance(value, mapOfRight, key))
     })
     leftArgumentDiff.updated.forEach(({prev, next}, leftKey) => {
       const mapLeftToSetOfRightKeysInstance = currentMapLeftToRightKeysInstances.get(leftKey)
@@ -134,23 +185,25 @@ export function leftJoin<KL, VL, KR, VR, VO> (
       const nextRightKeys = mapLeftToSetOfRightKeysInstance(next, leftKey)
 
       let mapOfRight = leftKeyToMapOfRight.get(leftKey)
-      const rightKeysDiff = nextRightKeys.diffFromCallbacks(prevRightKeys, {
-        add: rightKey => {
-          mapOfRight.set(rightKey, newRightArgument.get(rightKey))
-          const leftKeys = rightKeyToLeftKeys.get(rightKey)
-          if(!leftKeys) {
-            rightKeyToLeftKeys.set(rightKey, createMutableSet().add(leftKey))
-          } else {
-            leftKeys.add(leftKey)
-          }
-        },
-        remove: rightKey => {
-          mapOfRight.remove(rightKey)
-          rightKeyToLeftKeys.get(rightKey).remove(leftKey)
-        },
+      prevRightKeys.forEach(rightKey => {
+        mapOfRight.delete(rightKey)
+        const leftKeys = rightKeyToLeftKeys.get(rightKey)
+        if(!!leftKeys) {
+          // TODO: ensure this is always set so the check is unnecessary
+          leftKeys.delete(leftKey)
+        }
+      })
+      nextRightKeys.forEach(rightKey => {
+        mapOfRight.set(rightKey, rightValueByKey.get(rightKey))
+        const leftKeys = rightKeyToLeftKeys.get(rightKey)
+        if(!leftKeys) {
+          rightKeyToLeftKeys.set(rightKey, createMutableSet().add(leftKey))
+        } else {
+          leftKeys.add(leftKey)
+        }
       })
 
-      newValue.set(leftKey, attachInstance(next, mapOfRight))
+      newValue.set(leftKey, attachInstance(next, mapOfRight, leftKey))
     })
 
     const finalValue = newValue.asImmutable()
