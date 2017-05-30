@@ -93,8 +93,12 @@ export function leftJoin<KL, VL, KR, VR, VO> (
   let currentLeftArgument = Map()
   let currentRightArgument = Map()
 
-  let currentMapLeftToRightKeysInstances = createMutableMap()
-  let currentAttachInstances = createMutableMap()
+  const shouldSpecializeMapLeft = !!mapLeftToSetOfRightKeys.specialize
+  const shouldSpecializeAttach = !!attachLeftWithMapOfRight.specialize
+
+  const currentMapLeftToRightKeysInstances = shouldSpecializeMapLeft ? createMutableMap() : null
+  const currentAttachInstances = shouldSpecializeAttach ? createMutableMap() : null
+
   let rightKeyToLeftKeys = createMutableMap()
   let leftKeyToMapOfRight = createMutableMap()
 
@@ -113,7 +117,9 @@ export function leftJoin<KL, VL, KR, VR, VO> (
       allLeftKeys.forEach(leftKey => {
         const mapOfRight = leftKeyToMapOfRight.get(leftKey)
         mapOfRight.delete(rightKey)
-        const attachInstance = currentAttachInstances.get(leftKey)
+        const attachInstance = shouldSpecializeAttach
+          ? currentAttachInstances.get(leftKey)
+          : attachLeftWithMapOfRight
         // Use the currentLeftArgument, since the leftElements are updated in the last three loops
         newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
@@ -129,7 +135,9 @@ export function leftJoin<KL, VL, KR, VR, VO> (
         }
         mapOfRight.set(rightKey, rightValue)
 
-        const attachInstance = currentAttachInstances.get(leftKey)
+        const attachInstance = shouldSpecializeAttach
+          ? currentAttachInstances.get(leftKey)
+          : attachLeftWithMapOfRight
         newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
     })
@@ -140,15 +148,17 @@ export function leftJoin<KL, VL, KR, VR, VO> (
       allLeftKeys.forEach(leftKey => {
         const mapOfRight = leftKeyToMapOfRight.get(leftKey)
         mapOfRight.set(rightKey, next)
-        const attachInstance = currentAttachInstances.get(leftKey)
+        const attachInstance = shouldSpecializeAttach
+          ? currentAttachInstances.get(leftKey)
+          : attachLeftWithMapOfRight
         //console.log('attaching', currentLeftArgument.get(leftKey), 'with', Array.from(mapOfRight))
         newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey), mapOfRight, leftKey))
       })
     })
 
     leftArgumentDiff.removed.forEach((value, leftKey) => {
-      currentMapLeftToRightKeysInstances.delete(leftKey)
-      currentAttachInstances.delete(leftKey)
+      shouldSpecializeMapLeft && currentMapLeftToRightKeysInstances.delete(leftKey)
+      shouldSpecializeAttach && currentAttachInstances.delete(leftKey)
       leftKeyToMapOfRight.get(leftKey).forEach((rightValue, rightKey) => {
         const leftKeys = rightKeyToLeftKeys.get(rightKey)
         leftKeys.delete(leftKey)
@@ -157,10 +167,12 @@ export function leftJoin<KL, VL, KR, VR, VO> (
       newValue.remove(leftKey)
     })
     leftArgumentDiff.added.forEach((value, key) => {
-      const mapLeftToSetOfRightKeysInstance = mapLeftToSetOfRightKeys.specialize
+      const mapLeftToSetOfRightKeysInstance = shouldSpecializeMapLeft
         ? mapLeftToSetOfRightKeys.specialize() 
         : mapLeftToSetOfRightKeys
-      const attachInstance = attachLeftWithMapOfRight.specialize ? attachLeftWithMapOfRight.specialize() : attachLeftWithMapOfRight
+      const attachInstance = shouldSpecializeAttach 
+        ? attachLeftWithMapOfRight.specialize() 
+        : attachLeftWithMapOfRight
       const rightKeys = mapLeftToSetOfRightKeysInstance(value, key)
       // TODO: Optionally diff-mem the following map! Also make sure undefined doesn't land there
       const mapOfRight = createMutableMap()
@@ -174,13 +186,17 @@ export function leftJoin<KL, VL, KR, VR, VO> (
         mapOfRight.set(rightKey, rightValueByKey.get(rightKey))
       })
       leftKeyToMapOfRight.set(key, mapOfRight)
-      currentMapLeftToRightKeysInstances.set(key, mapLeftToSetOfRightKeysInstance)
-      currentAttachInstances.set(key, attachInstance)
+      shouldSpecializeMapLeft && currentMapLeftToRightKeysInstances.set(key, mapLeftToSetOfRightKeysInstance)
+      shouldSpecializeAttach && currentAttachInstances.set(key, attachInstance)
       newValue.set(key, attachInstance(value, mapOfRight, key))
     })
     leftArgumentDiff.updated.forEach(({prev, next}, leftKey) => {
-      const mapLeftToSetOfRightKeysInstance = currentMapLeftToRightKeysInstances.get(leftKey)
-      const attachInstance = currentAttachInstances.get(leftKey)
+      const mapLeftToSetOfRightKeysInstance = shouldSpecializeMapLeft 
+        ? currentMapLeftToRightKeysInstances.get(leftKey)
+        : mapLeftToSetOfRightKeys
+      const attachInstance = shouldSpecializeAttach
+        ? currentAttachInstances.get(leftKey)
+        : attachLeftWithMapOfRight
       const prevRightKeys = mapLeftToSetOfRightKeysInstance(prev, leftKey)
       const nextRightKeys = mapLeftToSetOfRightKeysInstance(next, leftKey)
 

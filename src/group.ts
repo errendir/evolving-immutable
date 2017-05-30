@@ -5,7 +5,9 @@ import { wrapDiffProcessor } from './wrapDiffProcessor'
 import { createMutableMap } from './mutableContainers'
 
 export function groupDiffProcessor(fn) { 
-  let currentFnInstances = createMutableMap()
+  const shouldSpecializeFn = !!fn.specialize
+
+  let currentFnInstances = shouldSpecializeFn ? createMutableMap() : null
   let currentValue = createMutableMap()
 
   const groupsSentinel = []
@@ -22,9 +24,11 @@ export function groupDiffProcessor(fn) {
 
   const diffProcessor = ({ remove, add, update }) => ({
     remove: (value, key) => {
-      const fnInstance = currentFnInstances.get(key)
+      const fnInstance = shouldSpecializeFn 
+        ? currentFnInstances.get(key)
+        : fn
       const groups = findGroups(fnInstance(value, key))
-      currentFnInstances.delete(key)
+      shouldSpecializeFn && currentFnInstances.delete(key)
       groups.forEach(group => {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = prevSubCollection.remove(key)
@@ -39,9 +43,11 @@ export function groupDiffProcessor(fn) {
       })
     },
     add: (value, key) => {
-      const fnInstance = fn.specialize ? fn.specialize() : fn
+      const fnInstance = shouldSpecializeFn 
+        ? fn.specialize() 
+        : fn
       const groups = findGroups(fnInstance(value, key))
-      currentFnInstances.set(key, fnInstance)
+      shouldSpecializeFn && currentFnInstances.set(key, fnInstance)
       groups.forEach(group => {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key,value)
@@ -56,7 +62,9 @@ export function groupDiffProcessor(fn) {
       })
     },
     update: ({prev, next}, key) => {
-      const fnInstance = currentFnInstances.get(key)
+      const fnInstance = shouldSpecializeFn
+        ? currentFnInstances.get(key)
+        : fn
       const prevGroups = findGroups(fnInstance(prev, key))
       // TODO: consider using diff to only update groups that changed
       prevGroups.forEach(prevGroup => {
