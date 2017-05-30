@@ -4,11 +4,15 @@ import * as EvolvingImmutable from '../src/'
 import * as NaiveImmutable from './naiveTransformations'
 
 interface Like { id: number, userId: number, dataPiece1: number }
-const generateLike = () => ({ 
-  id: Math.floor(Math.random()*1000000),
-  userId: Math.floor(Math.random()*100),
-  dataPiece1: Math.floor(Math.random()*1000000)
-})
+const generateLike = () => {
+  const id = Math.floor(Math.random()*1000000)
+  return { 
+    id: Math.floor(Math.random()*1000000),
+    userId: Math.floor(Math.random()*100),
+    dataPiece1: Math.floor(Math.random()*1000000),
+    hashCode: () => id,
+  }
+}
 const generateLikes = (NUMBER_OF_LIKES=10000) => {
   const likesById = Map<any, any>().asMutable()
   for(let i=0; i<NUMBER_OF_LIKES; ++i) {
@@ -36,6 +40,28 @@ const perturbLikes = (likesById) => {
   return decision(likesById)
 }
 const debounce = (likesById) => Map(likesById.entrySeq().toJS())
+
+console.log('Testing perf of set vs map')
+const testMapSetSpeed = () => {
+  const likesById = generateLikes(100000)
+
+  console.time('map')
+  const map = Map().asMutable()
+  likesById.forEach((like, id) => {
+    map.set(id, like)
+  })
+  console.timeEnd('map')
+
+  console.time('set')
+  const set = Set().asMutable()
+  likesById.forEach((like, id) => {
+    set.add(like)
+  })
+  console.timeEnd('set')
+}
+
+testMapSetSpeed()
+
 
 console.log('Testing perf of filter')
 const testFilterSpeed = () => {
