@@ -1,9 +1,9 @@
 import { inspect } from 'util'
 
-import { Record, Set, Map, ShapedMap } from 'immutable'
+import { Record, Set, Map } from 'immutable'
 
 import { 
-  executeOneOnMany, semiPureFunction, addStepFunctions,
+  executeOneOnMany, semiPureFunction, composeFunctions,
   unionMap, unionSet, safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
 
@@ -159,7 +159,7 @@ nD --- nC
 
 // TODO: Make the records diffable too
 //const Node = Record({ id: '' })
-type Node = ShapedMap<{ id: string }>
+type Node = Record.Instance<{ id: string }>
 const Node = (data) => Map(data)
 
 const nodes = Set([
@@ -171,7 +171,7 @@ const nodes = Set([
 const nodesById = Map(nodes.map(node => ([node.get('id'), node])))
 
 //const Edge = Record({ id: '', source: '', target: '' })
-type Edge = ShapedMap<{ id: string, source: string, target: string }>
+type Edge = Record.Instance<{ id: string, source: string, target: string }>
 const Edge = (data) => Map(data)
 
 const edges = Set([
@@ -182,7 +182,7 @@ const edges = Set([
 ])
 const edgesById = Map(edges.map(edge => ([edge.get('id'), edge])))
 
-type EdgeWithNodes = ShapedMap<{ id: string, source: string, sourceNode: Node, target: string, targetNode: Node }>
+type EdgeWithNodes = Record.Instance<{ id: string, source: string, sourceNode: Node, target: string, targetNode: Node }>
 const attachSourceAndTarget = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('source'), edge.get('target')]),
   (edge, nodes) => {
@@ -314,7 +314,7 @@ const _getLikeUsers =
     (like, users) => ({ likeId: like.id, postId: like.postId, userId: users.get(like.userId).id, userName: users.get(like.userId).name })
   )
 
-const _getLikeUsersByPostId = addStepFunctions(
+const _getLikeUsersByPostId = composeFunctions(
   _getLikeUsers,
   group<string, LikeUser, string>(likeUser => likeUser.postId),
   map(toSet())

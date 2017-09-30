@@ -416,10 +416,10 @@ describe('zip', () => {
   })
 
   it('correctly processes the update of the entry in one map regardless of removal of the same key from the other map', () => {
-    const map1 = Map<any,any>({ a: { a: 1 }, b: { a: 2 }, c: { c: 3 } })
+    const map1 = Map<any>({ a: { a: 1 }, b: { a: 2 }, c: { c: 3 } })
     const map1_a = map1.set('a', { aa: 1 })
     const map1_b = map1.remove('a')
-    const map2 = Map<any,any>({ a: { b: 1 }, b: { b: 2 }, c: { c: 3 } })
+    const map2 = Map<any>({ a: { b: 1 }, b: { b: 2 }, c: { c: 3 } })
     const map2_a = map2.remove('a')
     const map2_b = map2.set('a', { aa: 1 })
 
@@ -462,7 +462,7 @@ describe('group', () => {
     console.assert(groupedObjects.get(12).get('c') === map.get('c'))
   })
   it('correctly moves an element from one group to another when ran on a modified argument', () => {
-    const map0 = Map<string, { v: number }>({})
+    const map0 = Map<{ v: number }>({})
     const map1 = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
     const map2 = map1.set('a', { v: 12 })
 
@@ -480,7 +480,7 @@ describe('group', () => {
   })
 
   it('removes a group from the resulting map if no argument value remains in the group', () => {
-    const map0 = Map<string, { v: number }>({})
+    const map0 = Map<{ v: number }>({})
     const map1 = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
     const map2 = map1.set('c', { v: 11 })
 
@@ -514,12 +514,12 @@ describe('leftJoin', () => {
     const l1 = { id: 1, uId: 1 }
     const l2 = { id: 2, uId: 2 }
     const l3 = { id: 3, uId: 3 }
-    const mapL = Map<number, L>([l1, l2, l3].map(l => ([l.id, l])))
+    const mapL = Map<number, L>([l1, l2, l3].map(l => ([l.id, l]) as [number, L]))
     interface U { id: number }
     const u1 = { id: 1 }
     const u2 = { id: 2 }
     const u3 = { id: 3 }
-    const mapU = Map<number, U>([u1, u2, u3].map(u => ([u.id, u])))
+    const mapU = Map<number, U>([u1, u2, u3].map(u => ([u.id, u]) as [number, U]))
 
     const getLU = leftJoin<number, L, number, U, { l: L, u: U }>(
       l => Set([l.uId]),

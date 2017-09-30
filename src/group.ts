@@ -1,8 +1,10 @@
-import { Set, OrderedSet, Map, Iterable, List, Record } from 'immutable'
+import { Set, OrderedSet, Map, List, Record } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
 import { createMutableMap } from './mutableContainers'
+
+const isIterable = (candidate) => candidate !== null && typeof candidate[Symbol.iterator] === 'function'
 
 export function groupDiffProcessor(fn) { 
   const shouldSpecializeFn = !!fn.specialize
@@ -13,7 +15,7 @@ export function groupDiffProcessor(fn) {
   const groupsSentinel = []
   const findGroups = (group) => {
     let groups
-    if(Iterable.isIterable(group)) {
+    if(isIterable(group)) {
       groups = group
     } else {
       groups = groupsSentinel
@@ -29,7 +31,7 @@ export function groupDiffProcessor(fn) {
         : fn
       const groups = findGroups(fnInstance(value, key))
       shouldSpecializeFn && currentFnInstances.delete(key)
-      groups.forEach(group => {
+      for(const group of groups) {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
@@ -40,7 +42,7 @@ export function groupDiffProcessor(fn) {
           //update({ prev: prevSubCollection, next: nextSubCollection }, group)
           remove(value, group, key)
         }
-      })
+      }
     },
     add: (value, key) => {
       const fnInstance = shouldSpecializeFn 
@@ -105,7 +107,7 @@ export function groupDiffProcessor(fn) {
 }
 
 interface GroupKeyFunction<K, V, GK> {
-  (value: V, key: K): Iterable<GK, GK> | GK,
+  (value: V, key: K): Iterable<GK> | GK,
   specialize?: () => GroupKeyFunction<K, V, GK>
 }
 interface GroupOperation<K, V, GK> {
