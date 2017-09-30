@@ -448,6 +448,15 @@ describe('group', () => {
     console.assert(groupedObjects.keySeq().toSet().has(11))
     console.assert(groupedObjects.keySeq().toSet().has(12))
   })
+  it('correctly groups by strings longer than 1 character', () => {
+    const map = Map({ a: { v: "eleven" }, b: { v: "eleven" }, c: { v: "twelve" }})
+
+    const groupByV = group<string, { v: string }, string>(object => object.v)
+    const groupedObjects = groupByV(map)
+
+    console.assert(groupedObjects.keySeq().toSet().has("eleven"))
+    console.assert(groupedObjects.keySeq().toSet().has("twelve"))
+  })
   it('produces a map of maps of all elements belonging to a particual group', () => {
     const map = Map({ a: { v: 11 }, b: { v: 11 }, c: { v: 12 }})
 

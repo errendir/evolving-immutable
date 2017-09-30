@@ -4,7 +4,9 @@ import { wrapDiffProcessor } from './wrapDiffProcessor'
 
 import { createMutableMap } from './mutableContainers'
 
-const isIterable = (candidate) => candidate !== null && typeof candidate[Symbol.iterator] === 'function'
+const isIterableNotString = (candidate) => candidate !== null && 
+  typeof candidate !== "string" &&  // grouping treats strings as keys even though they are iterable
+  typeof candidate[Symbol.iterator] === 'function'
 
 export function groupDiffProcessor(fn) { 
   const shouldSpecializeFn = !!fn.specialize
@@ -15,7 +17,7 @@ export function groupDiffProcessor(fn) {
   const groupsSentinel = []
   const findGroups = (group) => {
     let groups
-    if(isIterable(group)) {
+    if(isIterableNotString(group)) {
       groups = group
     } else {
       groups = groupsSentinel
@@ -50,7 +52,7 @@ export function groupDiffProcessor(fn) {
         : fn
       const groups = findGroups(fnInstance(value, key))
       shouldSpecializeFn && currentFnInstances.set(key, fnInstance)
-      groups.forEach(group => {
+      for(const group of groups) {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key,value)
         currentValue.set(group, nextSubCollection)
@@ -61,7 +63,7 @@ export function groupDiffProcessor(fn) {
           //update({ prev: prevSubCollection, next: nextSubCollection }, group)
           add(value, group, key)
         }
-      })
+      }
     },
     update: ({prev, next}, key) => {
       const fnInstance = shouldSpecializeFn
@@ -69,7 +71,7 @@ export function groupDiffProcessor(fn) {
         : fn
       const prevGroups = findGroups(fnInstance(prev, key))
       // TODO: consider using diff to only update groups that changed
-      prevGroups.forEach(prevGroup => {
+      for(const prevGroup of prevGroups) {
         const prevSubCollection = currentValue.get(prevGroup)
         const nextSubCollection = prevSubCollection.remove(key)
         if(nextSubCollection.isEmpty()) {
@@ -80,9 +82,9 @@ export function groupDiffProcessor(fn) {
           //update({ prev: prevSubCollection, next: nextSubCollection }, group)
           remove(prev, prevGroup, key)
         }
-      })
+      }
       const nextGroups = findGroups(fnInstance(next, key))
-      nextGroups.forEach(nextGroup => {
+      for(const nextGroup of nextGroups) {
         const prevSubCollection = currentValue.get(nextGroup)
         const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key, next)
         currentValue.set(nextGroup, nextSubCollection)
@@ -93,7 +95,7 @@ export function groupDiffProcessor(fn) {
           //update({ prev: prevSubCollection, next: nextSubCollection }, nextGroup)
           add(next, nextGroup, key)
         }
-      })
+      }
     },
   })
   const specialize = () => {
