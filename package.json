@@ -6,7 +6,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.8",
-    "immutable": "git+https://git@github.com/errendir/immutable-js.git#333a163"
+    "immutable": "git+https://git@github.com/errendir/immutable-js.git#ba1b891"
   },
   "scripts": {
     "start": "ts-node tests/examples.ts",
