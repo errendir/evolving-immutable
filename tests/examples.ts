@@ -3,20 +3,22 @@ import { inspect } from 'util'
 import { Record, Set, Map } from 'immutable'
 
 import { 
-  executeOneOnMany, semiPureFunction, composeFunctions,
-  unionMap, unionSet, safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet, toMap
+  executeOneOnMany, composeFunctions,
+  safeUnionSet, flattenMap, zip, leftJoin, group, map, filter, toSet
 } from '../src/'
+
+// TODO: Add examples for semiPureFunction, unionMap, unionSet, toMap
 
 import * as EvImm from '../src/'
 
-interface Post { id: string }
-const posts = Set([
-  {id: 'pA'},
-  {id: 'pB'},
-  {id: 'pC'},
-  {id: 'pD'},
-])
-const postsById = Map(posts.map(post => ([post.id, post])))
+// interface Post { id: string }
+// const posts = Set<Post>([
+//   {id: 'pA'},
+//   {id: 'pB'},
+//   {id: 'pC'},
+//   {id: 'pD'},
+// ])
+// const postsById = Map(posts.map(post => ([post.id, post])))
 
 interface Like { id: string, postId: string, userId: string }
 const likes = Set([
@@ -191,7 +193,7 @@ const attachSourceAndTarget = leftJoin<string, Edge, string, Node, EdgeWithNodes
       .set('targetNode', nodes.get(edge.get('target')))
   }
 )
-const isSourceOrTarget = (value, key) => key === 'source' || key === 'target'
+const isSourceOrTarget = (_value, key) => key === 'source' || key === 'target'
 const groupBySourceAndTarget = group(filter(isSourceOrTarget))
 const leaveNodes = map(map(edgeNode => Set([edgeNode.get('sourceNode'), edgeNode.get('targetNode')])))
 const flattenTheNodes = map(flattenMap())
@@ -212,7 +214,7 @@ const attachTargetNode = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('target')]),
   (edge, nodes) => (edge as EdgeWithNodes).set('targetNode', nodes.get(edge.get('target')))
 )
-const isSource = (value, key) => key === 'source'
+const isSource = (_value, key) => key === 'source'
 const groupBySource = group(filter(isSource))
 const leaveTargetNode = map(map(edgeNode => edgeNode.get('targetNode')))
 const convertToSet_1 = map(toSet())
@@ -227,7 +229,7 @@ const attachSourceNode = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
   edge => Set([edge.get('source')]),
   (edge, nodes) => (edge as EdgeWithNodes).set('sourceNode', nodes.get(edge.get('source')))
 )
-const isTarget = (value, key) => key === 'target'
+const isTarget = (_value, key) => key === 'target'
 const groupByTarget = group(filter(isTarget))
 const leaveSourceNode = map(map(edgeNode => edgeNode.get('sourceNode')))
 const convertToSet_2 = map(toSet())
@@ -262,7 +264,7 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
       .addStep(EvImm.group(({ edge }) => edge.get('target')))
       .addStep(EvImm.map(
         EvImm.startChain()
-          .addStep(EvImm.map(({ edge, sourceNode }) => sourceNode))
+          .addStep(EvImm.map(({ edge: _edge, sourceNode }) => sourceNode))
           .addStep(EvImm.toSet())
           .endChain()
       ))
@@ -271,7 +273,7 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
       .addStep(EvImm.group(({ edge }) => edge.get('source')))
       .addStep(EvImm.map(
         EvImm.startChain()
-          .addStep(EvImm.map(({ edge, targetNode }) => targetNode))
+          .addStep(EvImm.map(({ edge: _edge, targetNode }) => targetNode))
           .addStep(EvImm.toSet())
           .endChain()
       ))
@@ -306,7 +308,7 @@ console.log(
 )
 
 // Pipeline example - all functions are specializable
-const _getLikesByPostId = group<string, Like, string>(like => like.postId)
+//const _getLikesByPostId = group<string, Like, string>(like => like.postId)
 
 const _getLikeUsers =
   leftJoin<string, Like, string, User, LikeUser>(

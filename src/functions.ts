@@ -1,4 +1,4 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
+import { Map } from 'immutable'
 
 const objectMap = (object, fn) => {
   const mappedObject = {}

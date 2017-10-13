@@ -1,5 +1,3 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
-
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
 import { createMutableMap, createMutableSet, isMutableSet } from './mutableContainers'
@@ -10,7 +8,7 @@ export const toSetDiffProcessor = ({ assumeUniqueKeys=false } = {}) => {
     valueToKeys = createMutableMap()
   }
 
-  const diffProcessor = ({ remove, add, update }) => {
+  const diffProcessor = ({ remove, add, update: _update }) => {
     const removeKeyValue = (value, key) => {
       if(!assumeUniqueKeys) {
         const keys = valueToKeys.get(value)
@@ -72,7 +70,7 @@ export const toSet = ({ assumeUniqueKeys=false } = {}) => {
 }
 
 export const toMapDiffProcessor = (keyFn) => {
-  const diffProcessor = ({ remove, add, update }) => ({
+  const diffProcessor = ({ remove, add, update: _update }) => ({
     remove: value => {
       const key = keyFn(value)
       remove(value, key)
@@ -98,7 +96,6 @@ export const toMap = (keyFn) => {
 }
 
 export const reindexMapDiffProcessor = (keyFn) => {
-  let currentValue = Map()
   const diffProcessor = ({ remove, add, update }) => ({
     remove: (value, key) => {
       const newKey = keyFn(value, key)
@@ -111,7 +108,7 @@ export const reindexMapDiffProcessor = (keyFn) => {
     update: (prevNext, key) => {
       const { prev, next } = prevNext
       const prevNewKey = keyFn(prev, key)
-      const nextNewKey = keyFn(prev, key)
+      const nextNewKey = keyFn(prev, key) // TODO: Fix this bug
       if(prevNewKey === nextNewKey) {
         update(prevNext, nextNewKey)
       } else {

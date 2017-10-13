@@ -1,4 +1,4 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
+import { Map } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
@@ -26,7 +26,7 @@ export function groupDiffProcessor(fn) {
     return groups
   }
 
-  const diffProcessor = ({ remove, add, update }) => ({
+  const diffProcessor = ({ remove, add, update: _update }) => ({
     remove: (value, key) => {
       const fnInstance = shouldSpecializeFn 
         ? currentFnInstances.get(key)

@@ -1,4 +1,4 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
+import { Set, Map } from 'immutable'
 
 import { semiPureFunction } from './functions'
 

@@ -54,7 +54,7 @@ const testMapSetSpeed = () => {
 
   console.time('set')
   const set = Set().asMutable()
-  likesById.forEach((like, id) => {
+  likesById.forEach((like, _id) => {
     set.add(like)
   })
   console.timeEnd('set')

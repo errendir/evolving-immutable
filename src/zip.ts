@@ -1,16 +1,16 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
+import { Map } from 'immutable'
 
 import { createMutableMap } from './mutableContainers'
 
-interface ZipAttach<K, LV, RV, UV> {
-  (leftValue: LV | undefined, rightValue: LV | undefined): UV,
-  specialize? : any
+interface ZipAttach<LV, RV, UV> {
+  (leftValue: LV | undefined, rightValue: RV | undefined): UV,
+  specialize?: () => ZipAttach<LV, RV, UV>
 }
 interface ZipOperation<K, LV, RV, UV> {
   (leftMap: Map<K, LV>, rightMap: Map<K, RV>): Map<K, UV>,
   specialize: () => ZipOperation<K, LV, RV, UV>
 }
-export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperation<K, LV, RV, UV> {
+export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation<K, LV, RV, UV> {
   let currentValue = Map<any,any>()
   let currentLeftArgument = Map<any,any>()
   let currentRightArgument = Map<any,any>()
@@ -24,7 +24,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
 
     let newValue = currentValue
 
-    rightArgumentDiff.removed.forEach((rightValue, rightKey) => {
+    rightArgumentDiff.removed.forEach((_rightValue, rightKey) => {
       const leftValue = currentLeftArgument.get(rightKey)
       if(leftValue !== undefined) {
         const attachInstance = shouldSpecializeAttach
@@ -44,7 +44,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
     })
-    rightArgumentDiff.updated.forEach(({ prev, next }, rightKey) => {
+    rightArgumentDiff.updated.forEach(({ prev: _prev, next }, rightKey) => {
       const attachInstance = shouldSpecializeAttach
         ? currentAttachInstances.get(rightKey)
         : attach
@@ -52,7 +52,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
       newValue = newValue.set(rightKey, attachInstance(leftValue, next))
     })
 
-    leftArgumentDiff.removed.forEach((leftValue, leftKey) => {
+    leftArgumentDiff.removed.forEach((_leftValue, leftKey) => {
       const rightValue = newRightArgument.get(leftKey)
       if(rightValue !== undefined) {
         const attachInstance = shouldSpecializeAttach
@@ -72,7 +72,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<K, LV, RV, UV>) : ZipOperat
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
     })
-    leftArgumentDiff.updated.forEach(({ prev, next }, leftKey) => {
+    leftArgumentDiff.updated.forEach(({ prev: _prev, next }, leftKey) => {
       const attachInstance = shouldSpecializeAttach
         ? currentAttachInstances.get(leftKey)
         : attach

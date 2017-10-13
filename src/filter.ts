@@ -1,5 +1,3 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
-
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
 import { createMutableSet, createMutableMap } from './mutableContainers'

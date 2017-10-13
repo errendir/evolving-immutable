@@ -1,4 +1,4 @@
-import { Set, OrderedSet, Map, List, Record } from 'immutable'
+import { Map } from 'immutable'
 
 import { executeManyOnOne, executeOneOnMany } from './functions'
 
@@ -91,8 +91,6 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
     }
     return finalResult
   }
-  const specialize = () => {
-  }
   apply.specialize = () => {
     const newOperations = operations
       .map(specializeOperation)
@@ -103,7 +101,6 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
   const makeExtendableChain = (childChainConfig={childChain: null, memoizationType: null, historyLength: 0}) => {
     let childChain = childChainConfig.childChain
     let wasAlreadyExtended = false
-    let isOutputingDiff = false
 
     const _addStepInThisChain = (operation) => {
       if(operation.diffProcessor !== undefined) {
@@ -119,7 +116,7 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
           .slice(0, operations.length-1)
           .map(specializeOperation)
           .push(operation)
-        return _startChain(operations, false, { logTimeline, name })
+        return _startChain(newOperations, false, { logTimeline, name })
       }
     }
     const _addStep = (operation, needsToBeSpecialized=true) => {

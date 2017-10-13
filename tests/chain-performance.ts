@@ -1,10 +1,9 @@
-import { Record, OrderedSet, Map, Set } from 'immutable'
+import { Record, Map, Set } from 'immutable'
 
 import * as EvImm from '../src/'
 
 const shouldLogTimeline = false
 
-const emptySet = Set<any>()
 const emptyMap = Map<any, any>()
 
 // Connection
@@ -159,8 +158,8 @@ const _getAllActiveIII = EvImm.startChain({ logTimeline: shouldLogTimeline, name
 export const getAllActiveIII = (state) =>
   _getAllActiveIII(state)
 
-interface ConnectionWithTargetIdea { connection: any, targetIdea: any }
-interface ConnectionWithSourceIdea { connection: any, targetIdea: any }
+// interface ConnectionWithTargetIdea { connection: any, targetIdea: any }
+// interface ConnectionWithSourceIdea { connection: any, targetIdea: any }
 const _getChildIdeasByIdeaClientId = EvImm.startChain({ logTimeline: shouldLogTimeline, name: '_getChildIdeasByIdeaClientId' })
   .memoizeForValue()
   .mapOneToMany({
@@ -231,12 +230,12 @@ const _getRelatedIdeasByIdeaClientId = EvImm.startChain({ logTimeline: shouldLog
     emptyMapByIdeaClientId: EvImm.startChain()
       .addStep((state) => getAllInCurrentBoardIII(state))
       .memoizeForValue()
-      .addStep(EvImm.map(idea => emptyMap))
+      .addStep(EvImm.map(_idea => emptyMap))
       .endChain(),
   })
   .memoizeForObject()
   .addLeftJoinStep({
-    mapLeftToSetOfRightKeys: (emptyMap, clientId) => ([clientId]),
+    mapLeftToSetOfRightKeys: (_emptyMap, clientId) => ([clientId]),
     attachLeftWithMapOfRight: (emptyMap, wrappedMapOfRelated, clientId) => {
       return wrappedMapOfRelated.get(clientId) || emptyMap
     },
@@ -252,7 +251,7 @@ const rawState = require('../state-snapshot')
 
 const subMapNames = ['ideasInCurrentBoard', 'connectionsInCurrentBoard', 'comments', 'likes', 'labels', 'colors', 'attributes', 'users', 'ideasMetadata', 'graphLayoutsMetadata', 'graphLayouts', 'documents']
 for(let subMapName of subMapNames) {
-  rawState[subMapName] = Map(rawState[subMapName]).map(object => Map(object))
+  rawState[subMapName] = Map(rawState[subMapName]).map(object => Map(object as any))
 }
 rawState['connectionsInCurrentBoard'] = rawState['connectionsInCurrentBoard'].map(
   connection => new ConnectionRecord(connection)
@@ -261,9 +260,8 @@ rawState['board'] = Map(rawState['board'])
 
 const state = Map(rawState)
 
-debugger;
 console.profile && console.profile('getRelatedIdeasByIdeaClientId')
 console.time && console.time('getRelatedIdeasByIdeaClientId')
-const data = getRelatedIdeasByIdeaClientId(state)
+getRelatedIdeasByIdeaClientId(state)
 console.time && console.timeEnd('getRelatedIdeasByIdeaClientId')
 console.profile && console.profileEnd()

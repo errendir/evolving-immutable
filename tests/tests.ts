@@ -3,10 +3,12 @@ import { Set, Map } from 'immutable'
 import {
   startChain,
   memoizeForSlots, memoizeForRecentArguments,
-  semiPureFunction, composeFunctions,
-  unionMap, unionSet, flattenMap,
+  composeFunctions,
+  unionSet,
   zip, leftJoin, group, map, filter, toSet, toMap
 } from '../src/'
+
+// TODO: Add tests for semiPureFunction, unionMap, flattenMap
 
 describe('startChain', () => {
   it('produces a chain that can be specialized', () => {
@@ -38,12 +40,11 @@ describe('startChain', () => {
 
     const mapOver = map(toMemoizedUniqueNumberChain)
     
-    const va = {}, vb = {}, vc = {}, vd = {}
     const map1 = Map({ 'a': { id: 'a' }, 'b': { id: 'a' } })
-    const map2 = Map({ 'a': { id: 'a', s: 1 }, 'b': { id: 'a', s: 2 } })
+    //const map2 = Map({ 'a': { id: 'a', s: 1 }, 'b': { id: 'a', s: 2 } })
 
     const result1 = mapOver(map1)
-    const result2 = mapOver(map2)
+    //const result2 = mapOver(map2)
 
     // The chain is NOT shared between each key of the map - map specializes it
     console.assert(result1.get('a') !== result1.get('b'))
@@ -185,10 +186,10 @@ describe('startChain', () => {
 describe('memoizeForSlots', () => {
   it('produces a function that dispatches the data into the correct instance of the provided function based on the computed slot', () => {
     const getTransformedObject = memoizeForSlots({ 
-      computeSlot: (allObjects, objectId) => objectId,
+      computeSlot: (_allObjects, objectId) => objectId,
       executeFunction: composeFunctions(
         (allObjects, objectId) => allObjects.get(objectId),
-        memoizeForRecentArguments(object => Math.random(), { historyLength: 1 })
+        memoizeForRecentArguments(_object => Math.random(), { historyLength: 1 })
       )
     })
 
@@ -233,8 +234,8 @@ describe('memoizeForRecentArguments', () => {
     const obj3 = {}
     
     const hash1_1 = objHash(obj1)
-    const hash2 = objHash(obj2)
-    const hash3 = objHash(obj3)
+    objHash(obj2)
+    objHash(obj3)
     const hash1_2 = objHash(obj1)
     console.assert(hash1_1 !== hash1_2)
   })
@@ -247,9 +248,9 @@ describe('memoizeForRecentArguments', () => {
     const obj3 = {}
     
     const hash1_1 = objHash(obj1)
-    const hash2 = objHash(obj2)
+    objHash(obj2)
     const hash1_2 = objHash(obj1)
-    const hash3 = objHash(obj3)
+    objHash(obj3)
     const hash1_3 = objHash(obj1)
     console.assert(hash1_1 === hash1_2)
     console.assert(hash1_1 !== hash1_3)
@@ -260,7 +261,7 @@ describe('composeFunctions', () => {
   it('preserves the internal memoization of all the addStep functions', () => {
     const appendOneMoreThing = (map) => map.set('one-more-thing', { value: 11 })
     let nextValue = 0
-    const extractTheFake = map((object) => nextValue++)
+    const extractTheFake = map(_object => nextValue++)
 
     const process1 = composeFunctions(appendOneMoreThing, extractTheFake)
 
@@ -304,7 +305,7 @@ describe('filter', () => {
 
     const lowerThan10 = filter(element => element.value < 10)
 
-    const result1 = lowerThan10(map1)
+    lowerThan10(map1)
     const result2 = lowerThan10(map2)
     console.assert(result2.keySeq().toSet().equals(Set(["c"])))
     console.assert(result2.get("c") === map2.get("c"))
@@ -426,9 +427,9 @@ describe('zip', () => {
     const zipTwoObjects1 = zip((left, right) => ({ left, right }))
     const zipTwoObjects2 = zip((left, right) => ({ left, right }))
 
-    const outputMap1 = zipTwoObjects1(map1, map2)
+    zipTwoObjects1(map1, map2)
     const outputMap2 = zipTwoObjects1(map1_a, map2_a)
-    const outputMap3 = zipTwoObjects2(map1, map2)
+    zipTwoObjects2(map1, map2)
     const outputMap4 = zipTwoObjects2(map1_b, map2_b)
 
     console.assert(outputMap2.get("a").left === map1_a.get("a"))
