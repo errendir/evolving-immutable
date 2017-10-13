@@ -5,7 +5,8 @@ import {
   memoizeForSlots, memoizeForRecentArguments,
   composeFunctions,
   unionSet,
-  zip, leftJoin, group, map, filter, toSet, toMap
+  zip, leftJoin, group, map, filter,
+  toSet, toMap, reindexMap,
 } from '../src/'
 
 // TODO: Add tests for semiPureFunction, unionMap, flattenMap
@@ -594,6 +595,34 @@ describe('toMap', () => {
     console.assert(result.get(1) === o1)
     console.assert(result.get(2) === o2)
     console.assert(result.get(3) === o3)
+  })
+})
+
+describe('reindexMap', () => {
+  it("produces a map with updated keys", () => {
+    const incrementKeys = reindexMap((_value, key) => key+1)
+
+    const map = Map([[0, "a"], [1, "b"], [2, "c"]])
+
+    const result = incrementKeys(map)
+
+    console.assert(result.keySeq().toSet().equals(Set([1,2,3])))
+    console.assert(result.get(1) === "a")
+    console.assert(result.get(2) === "b")
+    console.assert(result.get(3) === "c")
+  })
+
+  it("correctly updates updated keys", () => {
+    const swapKeyValue = reindexMap(value => value)
+
+    const map1 = Map([[0, "a"], [1, "b"], [2, "c"]])
+    const map2 = map1.set(0, "d")
+    
+    const result1 = swapKeyValue(map1)
+    const result2 = swapKeyValue(map2)
+
+    console.assert(result1.keySeq().toSet().equals(Set(["a","b","c"])))
+    console.assert(result2.keySeq().toSet().equals(Set(["d","b","c"])))
   })
 })
 

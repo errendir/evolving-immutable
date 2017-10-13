@@ -108,7 +108,7 @@ export const reindexMapDiffProcessor = (keyFn) => {
     update: (prevNext, key) => {
       const { prev, next } = prevNext
       const prevNewKey = keyFn(prev, key)
-      const nextNewKey = keyFn(prev, key) // TODO: Fix this bug
+      const nextNewKey = keyFn(next, key)
       if(prevNewKey === nextNewKey) {
         update(prevNext, nextNewKey)
       } else {
