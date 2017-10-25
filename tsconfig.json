@@ -5,6 +5,7 @@
     "traceResolution": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "strictNullChecks": true,
     "types" : ["node", "immutable", "mocha"]
   }
 }

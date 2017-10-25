@@ -366,12 +366,12 @@ describe('zip', () => {
 
     const outputMap1 = zipTwoObjects(map1, map2)
 
-    console.assert(outputMap1.get("a").left === map1.get("a"))
-    console.assert(outputMap1.get("a").right === map2.get("a"))
-    console.assert(outputMap1.get("b").left === map1.get("b"))
-    console.assert(outputMap1.get("b").right === map2.get("b"))
-    console.assert(outputMap1.get("c").left === map1.get("c"))
-    console.assert(outputMap1.get("c").right === map2.get("c"))
+    console.assert((outputMap1.get("a") as any).left === map1.get("a"))
+    console.assert((outputMap1.get("a") as any).right === map2.get("a"))
+    console.assert((outputMap1.get("b") as any).left === map1.get("b"))
+    console.assert((outputMap1.get("b") as any).right === map2.get("b"))
+    console.assert((outputMap1.get("c") as any).left === map1.get("c"))
+    console.assert((outputMap1.get("c") as any).right === map2.get("c"))
   })
 
   it('does not remove entries from the resulting map as long as the key is present in at least one source maps', () => {
@@ -433,10 +433,10 @@ describe('zip', () => {
     zipTwoObjects2(map1, map2)
     const outputMap4 = zipTwoObjects2(map1_b, map2_b)
 
-    console.assert(outputMap2.get("a").left === map1_a.get("a"))
-    console.assert(outputMap2.get("a").right === map2_a.get("a"))
-    console.assert(outputMap4.get("a").left === map1_b.get("a"))
-    console.assert(outputMap4.get("a").right === map2_b.get("a"))
+    console.assert((outputMap2.get("a") as any).left === map1_a.get("a"))
+    console.assert((outputMap2.get("a") as any).right === map2_a.get("a"))
+    console.assert((outputMap4.get("a") as any).left === map1_b.get("a"))
+    console.assert((outputMap4.get("a") as any).right === map2_b.get("a"))
   })
 })
 
@@ -465,12 +465,12 @@ describe('group', () => {
     const groupByV = group<string, { v: number }, number>(object => object.v)
     const groupedObjects = groupByV(map)
 
-    console.assert(groupedObjects.get(11).has('a'))
-    console.assert(groupedObjects.get(11).get('a') === map.get('a'))
-    console.assert(groupedObjects.get(11).has('b'))
-    console.assert(groupedObjects.get(11).get('b') === map.get('b'))
-    console.assert(groupedObjects.get(12).has('c'))
-    console.assert(groupedObjects.get(12).get('c') === map.get('c'))
+    console.assert((groupedObjects.get(11) as any).has('a'))
+    console.assert((groupedObjects.get(11) as any).get('a') === map.get('a'))
+    console.assert((groupedObjects.get(11) as any).has('b'))
+    console.assert((groupedObjects.get(11) as any).get('b') === map.get('b'))
+    console.assert((groupedObjects.get(12) as any).has('c'))
+    console.assert((groupedObjects.get(12) as any).get('c') === map.get('c'))
   })
   it('correctly moves an element from one group to another when ran on a modified argument', () => {
     const map0 = Map<{ v: number }>({})
@@ -482,12 +482,12 @@ describe('group', () => {
     groupByV(map1)
     const groupedObjects = groupByV(map2)
 
-    console.assert(groupedObjects.get(11).has('b'))
-    console.assert(groupedObjects.get(11).get('b') === map2.get('b'))
-    console.assert(groupedObjects.get(12).has('a'))
-    console.assert(groupedObjects.get(12).get('a') === map2.get('a'))
-    console.assert(groupedObjects.get(12).has('c'))
-    console.assert(groupedObjects.get(12).get('c') === map2.get('c'))
+    console.assert((groupedObjects.get(11) as any).has('b'))
+    console.assert((groupedObjects.get(11) as any).get('b') === map2.get('b'))
+    console.assert((groupedObjects.get(12) as any).has('a'))
+    console.assert((groupedObjects.get(12) as any).get('a') === map2.get('a'))
+    console.assert((groupedObjects.get(12) as any).has('c'))
+    console.assert((groupedObjects.get(12) as any).get('c') === map2.get('c'))
   })
 
   it('removes a group from the resulting map if no argument value remains in the group', () => {
@@ -540,14 +540,14 @@ describe('leftJoin', () => {
     const lu = getLU(mapL, mapU)
     
     console.assert(lu.has(l1.id))
-    console.assert(lu.get(l1.id).l === l1)
-    console.assert(lu.get(l1.id).u === u1)
+    console.assert((lu.get(l1.id) as any).l === l1)
+    console.assert((lu.get(l1.id) as any).u === u1)
     console.assert(lu.has(l2.id))
-    console.assert(lu.get(l2.id).l === l2)
-    console.assert(lu.get(l2.id).u === u2)
+    console.assert((lu.get(l2.id) as any).l === l2)
+    console.assert((lu.get(l2.id) as any).u === u2)
     console.assert(lu.has(l3.id))
-    console.assert(lu.get(l3.id).l === l3)
-    console.assert(lu.get(l3.id).u === u3)
+    console.assert((lu.get(l3.id) as any).l === l3)
+    console.assert((lu.get(l3.id) as any).u === u3)
   })
 })
 

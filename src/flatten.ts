@@ -41,13 +41,13 @@ export const flattenMap = () => {
 
     const removeValueKeyFromSource = (value, key, sourceKey) => {
       currentKeyToSourceKeys.update(key, sources => sources.remove(sourceKey))
-      if(currentKeyToSourceKeys.get(key).isEmpty()) {
+      if((currentKeyToSourceKeys.get(key) as Set<any>).isEmpty()) {
         currentKeyToSourceKeys.remove(key)
         newValue = newValue.remove(key)
       } else if(newValue.get(key) === value) {
         // TODO: More inconsistency (described below too) - even if value taken
         // for the key was `=== value` doesn't mean it was taken from this removed source
-        const remainingSourceKey = currentKeyToSourceKeys.get(key).last()
+        const remainingSourceKey = (currentKeyToSourceKeys.get(key) as Set<any>).last()
         const remainingValue = currentArgument.get(remainingSourceKey).get(key)
         newValue = newValue.set(key, remainingValue)
       }

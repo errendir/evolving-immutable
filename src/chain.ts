@@ -22,8 +22,8 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
     throw new Error('Do not create a chain as part of any chain execution')
   }
 
-  const previousPartialArguments = []
-  const previousPartialValues = []
+  const previousPartialArguments: any[] = []
+  const previousPartialValues: any[] = []
 
   const apply: any = (...args) => {
     if(logTimeline) {
@@ -36,7 +36,7 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
       let currentArguments = args
 
       const getChainableBlock = (ops) => {
-        const chainableOperations = []
+        const chainableOperations: any[] = []
         while(ops[0] && ops[0].diffProcessor !== undefined) {
           chainableOperations.push(ops[0])
           ops.shift()
@@ -98,7 +98,7 @@ function _startChain(operations, allowedInsideAChain=false, { logTimeline, name 
       .endChain()
   }
 
-  const makeExtendableChain = (childChainConfig={childChain: null, memoizationType: null, historyLength: 0}) => {
+  const makeExtendableChain = (childChainConfig={childChain: null as any, memoizationType: null as any, historyLength: 0}) => {
     let childChain = childChainConfig.childChain
     let wasAlreadyExtended = false
 

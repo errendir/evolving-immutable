@@ -2,19 +2,17 @@ import { Map } from 'immutable'
 
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
-import { createMutableMap } from './mutableContainers'
+import { createMutableMap, createSpecializingMap } from './mutableContainers'
 
 const isIterableNotString = (candidate) => candidate !== null && 
   typeof candidate !== "string" &&  // grouping treats strings as keys even though they are iterable
   typeof candidate[Symbol.iterator] === 'function'
 
 export function groupDiffProcessor(fn) { 
-  const shouldSpecializeFn = !!fn.specialize
-
-  let currentFnInstances = shouldSpecializeFn ? createMutableMap() : null
+  const { deleteFnInstance, setFnInstance, getFnInstance, specializeFn  } = createSpecializingMap(fn)
   let currentValue = createMutableMap()
 
-  const groupsSentinel = []
+  const groupsSentinel: any[] = []
   const findGroups = (group) => {
     let groups
     if(isIterableNotString(group)) {
@@ -28,11 +26,9 @@ export function groupDiffProcessor(fn) {
 
   const diffProcessor = ({ remove, add, update: _update }) => ({
     remove: (value, key) => {
-      const fnInstance = shouldSpecializeFn 
-        ? currentFnInstances.get(key)
-        : fn
+      const fnInstance = getFnInstance(key)
       const groups = findGroups(fnInstance(value, key))
-      shouldSpecializeFn && currentFnInstances.delete(key)
+      deleteFnInstance(key)
       for(const group of groups) {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = prevSubCollection.remove(key)
@@ -47,11 +43,9 @@ export function groupDiffProcessor(fn) {
       }
     },
     add: (value, key) => {
-      const fnInstance = shouldSpecializeFn 
-        ? fn.specialize() 
-        : fn
+      const fnInstance = specializeFn()
       const groups = findGroups(fnInstance(value, key))
-      shouldSpecializeFn && currentFnInstances.set(key, fnInstance)
+      setFnInstance(key, fnInstance)
       for(const group of groups) {
         const prevSubCollection = currentValue.get(group)
         const nextSubCollection = (prevSubCollection || Map().asMutable()).set(key,value)
@@ -66,9 +60,7 @@ export function groupDiffProcessor(fn) {
       }
     },
     update: ({prev, next}, key) => {
-      const fnInstance = shouldSpecializeFn
-        ? currentFnInstances.get(key)
-        : fn
+      const fnInstance = getFnInstance(key)
       const prevGroups = findGroups(fnInstance(prev, key))
       // TODO: consider using diff to only update groups that changed
       for(const prevGroup of prevGroups) {

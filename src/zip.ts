@@ -1,6 +1,6 @@
 import { Map } from 'immutable'
 
-import { createMutableMap } from './mutableContainers'
+import { createSpecializingMap } from './mutableContainers'
 
 interface ZipAttach<LV, RV, UV> {
   (leftValue: LV | undefined, rightValue: RV | undefined): UV,
@@ -15,8 +15,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation
   let currentLeftArgument = Map<any,any>()
   let currentRightArgument = Map<any,any>()
 
-  const shouldSpecializeAttach = !!attach.specialize
-  let currentAttachInstances = shouldSpecializeAttach ? createMutableMap() : null
+  const currentAttachInstances = createSpecializingMap<K, typeof attach>(attach)
 
   const apply: any = (newLeftArgument, newRightArgument) => {
     const leftArgumentDiff = newLeftArgument.diffFrom(currentLeftArgument)
@@ -27,27 +26,21 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation
     rightArgumentDiff.removed.forEach((_rightValue, rightKey) => {
       const leftValue = currentLeftArgument.get(rightKey)
       if(leftValue !== undefined) {
-        const attachInstance = shouldSpecializeAttach
-          ? currentAttachInstances.get(rightKey)
-          : attach
+        const attachInstance = currentAttachInstances.getFnInstance(rightKey)
         newValue = newValue.set(rightKey, attachInstance(leftValue, undefined))
       } else {
-        shouldSpecializeAttach && currentAttachInstances.delete(rightKey)
+        currentAttachInstances.deleteFnInstance(rightKey)
         newValue = newValue.remove(rightKey)
       }
     })
     rightArgumentDiff.added.forEach((rightValue, rightKey) => {
-      const attachInstance = shouldSpecializeAttach
-        ? currentAttachInstances.get(rightKey) || attach.specialize()
-        : attach
-      shouldSpecializeAttach && currentAttachInstances.set(rightKey, attachInstance)
+      const attachInstance = currentAttachInstances.getFnInstance(rightKey)
+      currentAttachInstances.setFnInstance(rightKey, attachInstance)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
     })
     rightArgumentDiff.updated.forEach(({ prev: _prev, next }, rightKey) => {
-      const attachInstance = shouldSpecializeAttach
-        ? currentAttachInstances.get(rightKey)
-        : attach
+      const attachInstance = currentAttachInstances.getFnInstance(rightKey)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, next))
     })
@@ -55,27 +48,21 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation
     leftArgumentDiff.removed.forEach((_leftValue, leftKey) => {
       const rightValue = newRightArgument.get(leftKey)
       if(rightValue !== undefined) {
-        const attachInstance = shouldSpecializeAttach
-          ? currentAttachInstances.get(leftKey)
-          : attach
+        const attachInstance = currentAttachInstances.getFnInstance(leftKey)
         newValue = newValue.set(leftKey, attachInstance(undefined, rightValue))
       } else {
-        shouldSpecializeAttach && currentAttachInstances.delete(leftKey)
+        currentAttachInstances.deleteFnInstance(leftKey)
         newValue = newValue.remove(leftKey)
       }
     })
     leftArgumentDiff.added.forEach((leftValue, leftKey) => {
-      const attachInstance = shouldSpecializeAttach
-        ? currentAttachInstances.get(leftKey) || attach.specialize()
-        : attach
-      shouldSpecializeAttach && currentAttachInstances.set(leftKey, attachInstance)
+      const attachInstance = currentAttachInstances.getFnInstance(leftKey)
+      currentAttachInstances.setFnInstance(leftKey, attachInstance)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
     })
     leftArgumentDiff.updated.forEach(({ prev: _prev, next }, leftKey) => {
-      const attachInstance = shouldSpecializeAttach
-        ? currentAttachInstances.get(leftKey)
-        : attach
+      const attachInstance = currentAttachInstances.getFnInstance(leftKey)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(next, rightValue))
     })

@@ -1,26 +1,24 @@
 import { wrapDiffProcessor } from './wrapDiffProcessor'
 
-import { createMutableSet, createMutableMap } from './mutableContainers'
+import { createMutableSet, createSpecializingMap } from './mutableContainers'
 
 export const filterDiffProcessor = (fn, rememberPresent = true) => {
-  const shouldSpecializePredicate = !!fn.specialize
 
-  let currentFnInstances = shouldSpecializePredicate ? createMutableMap() : null
+  const { deleteFnInstance, setFnInstance, getFnInstance, specializeFn  } = createSpecializingMap(fn)
+
   let presentKeys = createMutableSet()
   const diffProcessor = ({ remove, add, update }) => {
     return {
       remove: (value, key) => {
-        shouldSpecializePredicate && currentFnInstances.delete(key)
+        deleteFnInstance(key)
         if(presentKeys.has(key)) {
           presentKeys.delete(key)
           remove(value, key)
         }
       },
       add: (value, key) => {
-        const fnInstance = shouldSpecializePredicate
-          ? fn.specialize() 
-          : fn
-        shouldSpecializePredicate && currentFnInstances.set(key, fnInstance)
+        const fnInstance = specializeFn()
+        setFnInstance(key, fnInstance)
         if(fnInstance(value, key)) {
           presentKeys.add(key)
           add(value, key)
@@ -28,9 +26,7 @@ export const filterDiffProcessor = (fn, rememberPresent = true) => {
       },
       update: (prevNext, key) => {
         const {prev, next} = prevNext
-        const fnInstance = shouldSpecializePredicate
-          ? currentFnInstances.get(key)
-          : fn
+        const fnInstance = getFnInstance(key)
         const isIn = presentKeys.has(key)
         const shouldBeIn = fnInstance(next, key)
         if(!isIn && shouldBeIn) {
