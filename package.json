@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "build/index.js",
   "module": "build/index.js",
-  "typings": "types/evolving-immutable.d.ts",
+  "typings": "types/index.d.ts",
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.8",
