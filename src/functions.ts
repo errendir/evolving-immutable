@@ -96,11 +96,11 @@ export const memoizeForRecentArgumentObject = memoize((currentArguments, pastArg
   return true
 })
 
-interface SemiPureConfiguration<M, A, R> {
+export interface SemiPureConfiguration<M, A, R> {
   createMemory: () => M,
   executeFunction: (memory: M, ...args: A[]) => R,
 }
-interface SemiPureOperation<M, A, R> {
+export interface SemiPureOperation<M, A, R> {
   (...args: A[]): R,
   specialize: () => SemiPureOperation<M, A, R>
 }

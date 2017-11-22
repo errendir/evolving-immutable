@@ -1,14 +1,17 @@
 {
   "name": "evolving-immutable",
   "version": "1.0.0",
-  "main": "src/index.ts",
-  "typings": "src/index.ts",
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "typings": "types/evolving-immutable.d.ts",
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.8",
+    "dts-gen": "^0.5.7",
     "immutable": "git+https://git@github.com/errendir/immutable-js.git#0659a20"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "start": "ts-node tests/examples.ts",
     "test": "mocha --require ts-node/register tests/tests.ts",
     "perf": "ts-node tests/performance.ts"

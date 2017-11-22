@@ -2,11 +2,11 @@ import { Map } from 'immutable'
 
 import { createSpecializingMap } from './mutableContainers'
 
-interface ZipAttach<LV, RV, UV> {
+export interface ZipAttach<LV, RV, UV> {
   (leftValue: LV | undefined, rightValue: RV | undefined): UV,
   specialize?: () => ZipAttach<LV, RV, UV>
 }
-interface ZipOperation<K, LV, RV, UV> {
+export interface ZipOperation<K, LV, RV, UV> {
   (leftMap: Map<K, LV>, rightMap: Map<K, RV>): Map<K, UV>,
   specialize: () => ZipOperation<K, LV, RV, UV>
 }

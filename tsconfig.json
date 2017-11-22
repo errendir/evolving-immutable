@@ -1,11 +1,21 @@
 {
   "compilerOptions": {
     "target": "es6",
+    "module": "es6",
     "moduleResolution": "node",
-    "traceResolution": true,
+    "traceResolution": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "strictNullChecks": true,
-    "types" : ["node", "immutable", "mocha"]
-  }
+    "types" : ["node", "mocha"],
+    "outDir": "build/",
+    "declaration": true,
+    "declarationDir": "types/"
+  },
+  "files": [
+    "src/index.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

@@ -100,11 +100,11 @@ export function groupDiffProcessor(fn) {
   }
 }
 
-interface GroupKeyFunction<K, V, GK> {
+export interface GroupKeyFunction<K, V, GK> {
   (value: V, key: K): Iterable<GK> | GK,
   specialize?: () => GroupKeyFunction<K, V, GK>
 }
-interface GroupOperation<K, V, GK> {
+export interface GroupOperation<K, V, GK> {
   (map: Map<K, V>): Map<GK, Map<K, V>>,
   specialize: () => GroupOperation<K, V, GK>
 }

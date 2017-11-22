@@ -57,11 +57,11 @@ export function mapOverMapDiffProcessor(fn) {
   }
 }
 
-interface MapOverMapMapper<K, VA, VB> {
+export interface MapOverMapMapper<K, VA, VB> {
   (value: VA, key: K): VB,
   specialize?: () => MapOverMapMapper<K, VA, VB>
 }
-interface MapOverMapOperation<K, VA, VB> {
+export interface MapOverMapOperation<K, VA, VB> {
   (map: Map<K, VA>): Map<K, VB>,
   specialize: () => MapOverMapOperation<K, VA, VB>
 }

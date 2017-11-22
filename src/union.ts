@@ -1,6 +1,7 @@
 import { Set, Map } from 'immutable'
 
-import { semiPureFunction } from './functions'
+// @ts-ignore
+import { semiPureFunction, SemiPureOperation } from './functions'
 
 import { wrapDualDiffProcessor } from './wrapDiffProcessor'
 
@@ -30,7 +31,7 @@ export function safeUnionSet<E>() {
   })
 }
 
-interface UnionSetOperation<E> {
+export interface UnionSetOperation<E> {
   (leftSet: Set<E>, rightSet: Set<E>): Set<E>,
   specialize: () => UnionSetOperation<E>
 }
@@ -144,7 +145,7 @@ export const unionMapDiffProcessor = () => {
   }
 }
 
-interface UnionMapOperation<K, V> {
+export interface UnionMapOperation<K, V> {
   (leftMap: Map<K, V>, rightMap: Map<K, V>): Map<K, V>,
   specialize: () => UnionMapOperation<K, V>
 }

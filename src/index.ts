@@ -1,3 +1,6 @@
+// @ts-ignore
+import { Map, Set } from 'immutable'
+
 import * as conversion from './conversion'
 import * as filter from './filter'
 import * as flatten from './flatten'

@@ -72,15 +72,15 @@ const emptyIterable = []
 //   }
 // }
 
-interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
+export interface LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR> {
   (leftValue: VL, leftKey?: KL): Set<KR>,
   specialize?: () => LeftJoinMapLeftToSetOfRightKeys<KL, VL, KR>
 }
-interface LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO> {
+export interface LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO> {
   (leftValue: VL, mapOfRightValues: any/*Map<KR, VR>*/, leftKey: KL): VO,
   specialize?: () => LeftJoinAttachLeftWithMapOfRight<KL, VL, KR, VR, VO>
 }
-interface LeftJoinOperation<KL, VL, KR, VR, VO> {
+export interface LeftJoinOperation<KL, VL, KR, VR, VO> {
   (leftMap: Map<KL, VL>, rightMap: Map<KR, VR>) : Map<KL, VO>,
   specialize: () => LeftJoinOperation<KL, VL, KR, VR, VO>
 }
