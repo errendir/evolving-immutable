@@ -4,19 +4,20 @@
   "main": "src/index.ts",
   "typings": "src/index.ts",
   "license": "MIT",
-  "dependencies": {
-    "@types/node": "^7.0.8",
-    "immutable": "git+https://git@github.com/errendir/immutable-js.git#0659a20"
-  },
   "scripts": {
     "start": "ts-node tests/examples.ts",
     "test": "mocha --require ts-node/register tests/tests.ts",
     "perf": "ts-node tests/performance.ts"
   },
   "devDependencies": {
-    "@types/mocha": "^2.2.40",
-    "mocha": "^3.2.0",
-    "ts-node": "^3.3.0",
-    "typescript": "^2.5.3"
+    "immutable": "git+https://git@github.com/errendir/immutable-js.git#bc4dfc8",
+    "@types/node": "^7.0.8",
+    "@types/mocha": "^5.2.2",
+    "mocha": "^5.2.0",
+    "ts-node": "^6.1.1",
+    "typescript": "^2.9.2"
+  },
+  "peerDependencies": {
+    "immutable": "git+https://git@github.com/errendir/immutable-js.git#bc4dfc8"
   }
 }

@@ -160,35 +160,40 @@ nD --- nC
 */
 
 // TODO: Make the records diffable too
-//const Node = Record({ id: '' })
-type Node = Record.Instance<{ id: string }>
-const Node = (data) => Map(data)
+class Node extends Record({ id: "" as string }) {}
 
 const nodes = Set([
-  Node({id: 'nA'}),
-  Node({id: 'nB'}),
-  Node({id: 'nC'}),
-  Node({id: 'nD'}),
+  new Node({id: 'nA'}),
+  new Node({id: 'nB'}),
+  new Node({id: 'nC'}),
+  new Node({id: 'nD'}),
 ])
-const nodesById = Map(nodes.map(node => ([node.get('id'), node])))
+const nodesById = Map(
+  nodes.valueSeq().toArray().map(node => ([node.get('id'), node]) as [string, Node])
+)
 
-//const Edge = Record({ id: '', source: '', target: '' })
-type Edge = Record.Instance<{ id: string, source: string, target: string }>
-const Edge = (data) => Map(data)
+class Edge extends Record({ id: "" as string, source: "" as string, target: "" as string }) {}
 
 const edges = Set([
-  Edge({id: 'eA', source: 'nA', target: 'nB'}),
-  Edge({id: 'eB', source: 'nB', target: 'nC'}),
-  Edge({id: 'eC', source: 'nC', target: 'nD'}),
-  Edge({id: 'eD', source: 'nD', target: 'nB'}),
+  new Edge({id: 'eA', source: 'nA', target: 'nB'}),
+  new Edge({id: 'eB', source: 'nB', target: 'nC'}),
+  new Edge({id: 'eC', source: 'nC', target: 'nD'}),
+  new Edge({id: 'eD', source: 'nD', target: 'nB'}),
 ])
-const edgesById = Map(edges.map(edge => ([edge.get('id'), edge])))
+const edgesById = Map(
+  edges.valueSeq().toArray().map(edge => ([edge.get('id'), edge]) as [string, Edge])
+)
 
-type EdgeWithNodes = Record.Instance<{ id: string, source: string, sourceNode: Node, target: string, targetNode: Node }>
+class EdgeWithNodes extends Record<{ id: string, source: string, sourceNode: Node, target: string, targetNode: Node }>
+  ({ id: null, source: null, sourceNode: null, target: null, targetNode: null } as any) {}
+
 const attachSourceAndTarget = leftJoin<string, Edge, string, Node, EdgeWithNodes>(
-  edge => Set([edge.get('source'), edge.get('target')]),
+  edge => Set([edge.get('source') as any as string, edge.get('target') as any as string]),
   (edge, nodes) => {
-    return (edge as EdgeWithNodes)
+    return new EdgeWithNodes({})
+      .set("id", edge.get("id"))
+      .set("source", edge.get("source"))
+      .set("target", edge.get("target"))
       .set('sourceNode', nodes.get(edge.get('source')))
       .set('targetNode', nodes.get(edge.get('target')))
   }
@@ -264,7 +269,7 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
       .addStep(EvImm.group(({ edge }) => edge.get('target')))
       .addStep(EvImm.map(
         EvImm.startChain()
-          .addStep(EvImm.map(({ edge: _edge, sourceNode }) => sourceNode))
+          .addStep(EvImm.map(({ sourceNode }) => sourceNode))
           .addStep(EvImm.toSet())
           .endChain()
       ))
@@ -273,7 +278,7 @@ const getNeighboursByNodeId_2 = EvImm.startChain()
       .addStep(EvImm.group(({ edge }) => edge.get('source')))
       .addStep(EvImm.map(
         EvImm.startChain()
-          .addStep(EvImm.map(({ edge: _edge, targetNode }) => targetNode))
+          .addStep(EvImm.map(({ targetNode }) => targetNode))
           .addStep(EvImm.toSet())
           .endChain()
       ))
