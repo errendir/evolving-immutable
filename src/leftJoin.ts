@@ -133,7 +133,7 @@ export function leftJoin<KL, VL, KR, VR, VO> (
         newValue.set(leftKey, attachInstance(currentLeftArgument.get(leftKey) as VL, mapOfRight, leftKey))
       })
     })
-    rightArgumentDiff.updated.forEach(({ prev: _prev, next }, rightKey) => {
+    rightArgumentDiff.updated.forEach(({ next }, rightKey) => {
       //console.log('update', { prev, next }, rightKey, next.diffFrom && next.diffFrom(prev))
       rightValueByKey.set(rightKey, next)
       const allLeftKeys = rightKeyToLeftKeys.get(rightKey) || emptyIterable

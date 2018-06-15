@@ -39,7 +39,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, rightValue))
     })
-    rightArgumentDiff.updated.forEach(({ prev: _prev, next }, rightKey) => {
+    rightArgumentDiff.updated.forEach(({ next }, rightKey) => {
       const attachInstance = currentAttachInstances.getFnInstance(rightKey)
       const leftValue = currentLeftArgument.get(rightKey)
       newValue = newValue.set(rightKey, attachInstance(leftValue, next))
@@ -61,7 +61,7 @@ export function zip<K, LV, RV, UV>(attach: ZipAttach<LV, RV, UV>) : ZipOperation
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(leftValue, rightValue))
     })
-    leftArgumentDiff.updated.forEach(({ prev: _prev, next }, leftKey) => {
+    leftArgumentDiff.updated.forEach(({ next }, leftKey) => {
       const attachInstance = currentAttachInstances.getFnInstance(leftKey)
       const rightValue = newRightArgument.get(leftKey)
       newValue = newValue.set(leftKey, attachInstance(next, rightValue))

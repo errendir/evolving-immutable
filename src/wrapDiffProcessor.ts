@@ -3,19 +3,19 @@ import { Map, Set } from 'immutable'
 export const applyToMapDiffProcessor = (getMap, replaceMap) => ({
   remove: (_value, key) => replaceMap(getMap().remove(key)),
   add: (value, key) => replaceMap(getMap().set(key, value)),
-  update: ({prev: _prev, next}, key) => replaceMap(getMap().set(key, next)),
+  update: ({ next }, key) => replaceMap(getMap().set(key, next)),
 })
 
 export const applyToMutableMapDiffProcessor = (getMap) => ({
   remove: (_value, key) => getMap().remove(key),
   add: (value, key) => getMap().set(key, value),
-  update: ({prev: _prev, next}, key) => getMap().set(key, next),
+  update: ({ next }, key) => getMap().set(key, next),
 })
 
 export const applyToDeepMutableMapDiffProcessor = (getMap) => ({
   remove: (_value, ...keys) => getMap().deleteIn(keys),
   add: (value, ...keys) => getMap().setIn(keys, value),
-  update: ({prev: _prev, next}, ...keys) => getMap().setIn(keys, next),
+  update: ({ next }, ...keys) => getMap().setIn(keys, next),
 })
 
 export const applyToSetDiffProcessor = (getSet, replaceSet) => ({

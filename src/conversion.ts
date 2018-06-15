@@ -8,7 +8,7 @@ export const toSetDiffProcessor = ({ assumeUniqueKeys=false } = {}) => {
     valueToKeys = createMutableMap()
   }
 
-  const diffProcessor = ({ remove, add, update: _update }) => {
+  const diffProcessor = ({ remove, add }) => {
     const removeKeyValue = (value, key) => {
       if(!assumeUniqueKeys) {
         const keys = valueToKeys.get(value)
@@ -70,7 +70,7 @@ export const toSet = ({ assumeUniqueKeys=false } = {}) => {
 }
 
 export const toMapDiffProcessor = (keyFn) => {
-  const diffProcessor = ({ remove, add, update: _update }) => ({
+  const diffProcessor = ({ remove, add }) => ({
     remove: value => {
       const key = keyFn(value)
       remove(value, key)

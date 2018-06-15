@@ -24,7 +24,7 @@ export function groupDiffProcessor(fn) {
     return groups
   }
 
-  const diffProcessor = ({ remove, add, update: _update }) => ({
+  const diffProcessor = ({ remove, add }) => ({
     remove: (value, key) => {
       const fnInstance = getFnInstance(key)
       const groups = findGroups(fnInstance(value, key))
